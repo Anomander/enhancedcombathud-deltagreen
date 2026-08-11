@@ -80,6 +80,35 @@ describe('Actor Adapter Verification', () => {
     expect(extractedGuns[0].damage).toBe('1d10');
   });
 
+  it('extracts weapons when actor.items is a Map/Collection or actor.weapons getter is used', () => {
+    const mockMapItems = new Map([
+      [
+        'w1',
+        {
+          id: 'w1',
+          name: 'Submachine Gun (SMG)',
+          type: 'weapon',
+          system: { skill: 'firearms', damage: '1D10', lethality: 10 }
+        }
+      ],
+      [
+        'w2',
+        {
+          id: 'w2',
+          name: 'Rifle (Light)',
+          type: 'weapon',
+          system: { skill: 'firearms', damage: '1D12', lethality: 15 }
+        }
+      ]
+    ]);
+
+    const mockActorMap = { items: mockMapItems };
+    const weapons = extractWeapons(mockActorMap);
+    expect(weapons.length).toBe(2);
+    expect(weapons[0].name).toBe('Submachine Gun (SMG)');
+    expect(weapons[1].name).toBe('Rifle (Light)');
+  });
+
   it('returns tactical actions list', () => {
     const tactics = extractTacticalActions();
     expect(tactics.length).toBeGreaterThanOrEqual(5);

@@ -1,7 +1,20 @@
 /**
- * Data adapter that safely extracts stats, vitals, weapons, skills, and combat actions
- * from a Delta Green actor or generic d100 actor document in Foundry VTT.
+ * Safely convert actor.items (whether a Foundry Collection, Map, Set, or Array) to a plain Array.
+ * @param {object} actor
+ * @returns {Array<object>}
  */
+export function getActorItems(actor) {
+  if (!actor) return [];
+  if (Array.isArray(actor.items)) return actor.items;
+  if (actor.items?.contents && Array.isArray(actor.items.contents)) return actor.items.contents;
+  if (actor.items?.values && typeof actor.items.values === 'function') return Array.from(actor.items.values());
+  if (actor.items && typeof actor.items[Symbol.iterator] === 'function') {
+    const items = Array.from(actor.items);
+    return items.map((entry) => (Array.isArray(entry) && entry.length === 2 ? entry[1] : entry));
+  }
+  if (Array.isArray(actor.weapons)) return actor.weapons;
+  return [];
+}
 
 /**
  * Get vital statistics for the HUD from actor data.
@@ -24,7 +37,7 @@ export function extractVitals(actor) {
   const sys = actor.system || actor.data?.data || {};
 
   // Resolve HP
-  const hpRaw = sys.hp || sys.attributes?.hp || {};
+  const hpRaw = sys.hp || sys.attributes?.hp || sys.health || {};
   const hpVal = Number(hpRaw.value ?? hpRaw.current ?? 10);
   const hpMax = Number(hpRaw.max ?? 10);
   const hpPct = hpMax > 0 ? Math.clamped(Math.round((hpVal / hpMax) * 100), 0, 100) : 0;
@@ -91,7 +104,8 @@ export function extractSkills(actor) {
 
   const sys = actor.system || actor.data?.data || {};
   const sysSkills = sys.skills || {};
-  const itemSkills = Array.isArray(actor.items) ? actor.items.filter((i) => i.type === 'skill') : [];
+  const items = getActorItems(actor);
+  const itemSkills = items.filter((i) => i.type === 'skill');
 
   const result = CORE_SKILLS.map((skillDef) => {
     let value = skillDef.defaultVal;
@@ -142,7 +156,7 @@ export function extractSkills(actor) {
  * @returns {Array<object>} Formatted weapon objects for HUD slots.
  */
 export function extractWeapons(actor) {
-  if (!actor || !Array.isArray(actor.items)) {
+  if (!actor) {
     return [
       {
         id: 'unarmed-strike',
@@ -158,41 +172,59 @@ export function extractWeapons(actor) {
     ];
   }
 
-  const weapons = actor.items
-    .filter((i) => i.type === 'weapon' || i.type === 'equipment')
-    .map((item) => {
-      const sys = item.system || item.data?.data || {};
-      const skillName = sys.skill || sys.associatedSkill || 'Firearms';
-      const skillKey = skillName.toLowerCase().replace(/\s+/g, '_');
+  const items = getActorItems(actor);
+  let weaponItems = items.filter((i) => i.type === 'weapon' || i.type === 'equipment');
 
-      return {
-        id: item.id || item._id,
-        name: item.name,
-        img: item.img || 'icons/weapons/guns/pistol-metal.webp',
-        skill: skillName,
-        skillKey,
-        damage: sys.damage || '1d10',
-        lethality: Number(sys.lethality ?? sys.lethalityRating ?? 0),
-        equipped: Boolean(sys.equipped ?? true),
-        ammo: sys.ammo !== undefined ? { value: Number(sys.ammo.value ?? 0), max: Number(sys.ammo.max ?? 0) } : null
-      };
-    });
-
-  if (weapons.length === 0) {
-    weapons.push({
-      id: 'unarmed-strike',
-      name: 'Unarmed Strike',
-      img: 'icons/skills/melee/unarmed-punch-fist.webp',
-      skill: 'Unarmed Combat',
-      skillKey: 'unarmed_combat',
-      damage: '1d4 - 1',
-      lethality: 0,
-      equipped: true,
-      ammo: null
-    });
+  // Fallback to actor.weapons getter if present on Delta Green actor
+  if (weaponItems.length === 0 && Array.isArray(actor.weapons) && actor.weapons.length > 0) {
+    weaponItems = actor.weapons;
   }
 
-  return weapons;
+  if (weaponItems.length === 0) {
+    return [
+      {
+        id: 'unarmed-strike',
+        name: 'Unarmed Strike',
+        img: 'icons/skills/melee/unarmed-punch-fist.webp',
+        skill: 'Unarmed Combat',
+        skillKey: 'unarmed_combat',
+        damage: '1d4 - 1',
+        lethality: 0,
+        equipped: true,
+        ammo: null
+      }
+    ];
+  }
+
+  return weaponItems.map((item) => {
+    const sys = item.system || item.data?.data || {};
+    const rawSkill = sys.skill || sys.associatedSkill || 'Firearms';
+
+    const skillLabels = {
+      firearms: 'Firearms',
+      heavy_weapons: 'Heavy Weapons',
+      melee_weapons: 'Melee Weapons',
+      unarmed_combat: 'Unarmed Combat',
+      demolitions: 'Demolitions'
+    };
+
+    const skillKey = String(rawSkill).toLowerCase().replace(/\s+/g, '_');
+    const skillName = skillLabels[skillKey] || rawSkill;
+
+    const lethalityVal = Number(sys.lethality?.value ?? sys.lethality ?? 0);
+
+    return {
+      id: item.id || item._id,
+      name: item.name || 'Weapon',
+      img: item.img || 'icons/weapons/guns/pistol-metal.webp',
+      skill: skillName,
+      skillKey,
+      damage: sys.damage || '1d10',
+      lethality: lethalityVal,
+      equipped: Boolean(sys.equipped ?? true),
+      ammo: sys.ammo !== undefined ? { value: Number(sys.ammo.value ?? 0), max: Number(sys.ammo.max ?? 0) } : null
+    };
+  });
 }
 
 /**
