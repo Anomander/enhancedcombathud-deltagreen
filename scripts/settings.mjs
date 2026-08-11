@@ -46,6 +46,36 @@ export function registerSettings() {
     default: 'dark-green'
   });
 
+  // Enable Willpower Boost
+  game.settings.register(MODULE_ID, 'enableWpBoost', {
+    name: 'DG_HUD.Settings.EnableWpBoostName',
+    hint: 'DG_HUD.Settings.EnableWpBoostHint',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  // Willpower Boost Cost
+  game.settings.register(MODULE_ID, 'wpBoostCost', {
+    name: 'DG_HUD.Settings.WpBoostCostName',
+    hint: 'DG_HUD.Settings.WpBoostCostHint',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 1
+  });
+
+  // Willpower Boost Percentage
+  game.settings.register(MODULE_ID, 'wpBoostPercent', {
+    name: 'DG_HUD.Settings.WpBoostPercentName',
+    hint: 'DG_HUD.Settings.WpBoostPercentHint',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 20
+  });
+
   // Register Shift+A keybinding
   if (game.keybindings) {
     game.keybindings.register(MODULE_ID, 'toggleHud', {

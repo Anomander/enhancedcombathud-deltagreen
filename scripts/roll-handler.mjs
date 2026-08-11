@@ -94,20 +94,31 @@ export function evaluateSanityRoll(currentSan, rollResult, sanLossSuccessFormula
 }
 
 /**
- * Handle spending 1 Willpower Point for +20% bonus.
+ * Handle spending Willpower Points for a bonus.
  * @param {object} vitals - Current vitals object containing wp.
+ * @param {number} [cost=1] - WP cost to spend.
+ * @param {number} [bonusPercent=20] - Percentage bonus to gain.
  * @returns {object} Updated vitals and bonus value.
  */
-export function spendWillpowerForBonus(vitals) {
-  if (!vitals || !vitals.wp || vitals.wp.value <= 0) {
-    return { success: false, reason: 'Insufficient Willpower Points', wpRemaining: vitals?.wp?.value || 0, bonus: 0 };
+export function spendWillpowerForBonus(vitals, cost = 1, bonusPercent = 20) {
+  const wpCost = Math.max(1, Number(cost || 1));
+  const bonus = Math.max(0, Number(bonusPercent ?? 20));
+
+  if (!vitals || !vitals.wp || vitals.wp.value < wpCost) {
+    return {
+      success: false,
+      reason: `Insufficient Willpower Points (requires ${wpCost} WP)`,
+      wpRemaining: vitals?.wp?.value || 0,
+      bonus: 0
+    };
   }
 
-  const updatedWp = vitals.wp.value - 1;
+  const updatedWp = vitals.wp.value - wpCost;
   return {
     success: true,
     wpRemaining: updatedWp,
-    bonus: 20,
-    message: 'Spent 1 WP for +20% bonus to next roll!'
+    bonus,
+    cost: wpCost,
+    message: `Spent ${wpCost} WP for +${bonus}% bonus to next roll!`
   };
 }

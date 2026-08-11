@@ -16,6 +16,16 @@ export class DeltaGreenCombatHudApp {
     this.element = null;
     this.controlledActor = null;
     this.wpBonusActive = false;
+    this.wpBonusAmount = 0;
+  }
+
+  /** Retrieve dynamic WP Boost module settings */
+  getWpBoostSettings() {
+    const MOD_ID = 'delta-green-combat-hud';
+    const enabled = typeof game !== 'undefined' && game.settings ? game.settings.get(MOD_ID, 'enableWpBoost') : true;
+    const cost = typeof game !== 'undefined' && game.settings ? game.settings.get(MOD_ID, 'wpBoostCost') : 1;
+    const percent = typeof game !== 'undefined' && game.settings ? game.settings.get(MOD_ID, 'wpBoostPercent') : 20;
+    return { enabled, cost, percent };
   }
 
   /**
@@ -81,6 +91,7 @@ export class DeltaGreenCombatHudApp {
     const tactics = extractTacticalActions();
     const combatState = this.combatTracker.update(typeof game !== 'undefined' ? game.combat : null, actor?.id);
     const targetState = this.targetManager.getState();
+    const wpSettings = this.getWpBoostSettings();
 
     const html = `
       <div class="dg-hud-dock ${this.wpBonusActive ? 'wp-bonus-glow' : ''}">
@@ -166,9 +177,15 @@ export class DeltaGreenCombatHudApp {
               <button class="dg-btn-action btn-end-turn" ${combatState.active ? '' : 'disabled'}>
                 <i class="fas fa-step-forward"></i> END TURN
               </button>
-              <button class="dg-btn-action btn-wp-boost ${vitals.wp.value <= 0 ? 'disabled' : ''}">
-                <i class="fas fa-bolt"></i> +20% WP BOOST
-              </button>
+              ${
+                wpSettings.enabled
+                  ? `
+                <button class="dg-btn-action btn-wp-boost ${vitals.wp.value < wpSettings.cost ? 'disabled' : ''}">
+                  <i class="fas fa-bolt"></i> +${wpSettings.percent}% WP BOOST (${wpSettings.cost} WP)
+                </button>
+              `
+                  : ''
+              }
             </div>
           `
           }
@@ -246,6 +263,7 @@ export class DeltaGreenCombatHudApp {
     }
 
     if (tab === 'sanity') {
+      const wpSettings = this.getWpBoostSettings();
       return `
         <div class="dg-sanity-panel">
           <div class="san-action-card">
@@ -253,13 +271,19 @@ export class DeltaGreenCombatHudApp {
             <p>Roll d100 against current Sanity (${vitals.san.value}%).</p>
             <button class="dg-btn-roll btn-roll-san">ROLL SANITY</button>
           </div>
-          <div class="san-action-card">
-            <h4>WILLPOWER BOOST</h4>
-            <p>Spend 1 WP to add +20% bonus to next roll or suppress panic.</p>
-            <button class="dg-btn-roll btn-spend-wp" ${vitals.wp.value <= 0 ? 'disabled' : ''}>
-              SPEND 1 WP (+20%)
-            </button>
-          </div>
+          ${
+            wpSettings.enabled
+              ? `
+            <div class="san-action-card">
+              <h4>WILLPOWER BOOST</h4>
+              <p>Spend ${wpSettings.cost} WP to add +${wpSettings.percent}% bonus to next roll or suppress panic.</p>
+              <button class="dg-btn-roll btn-spend-wp" ${vitals.wp.value < wpSettings.cost ? 'disabled' : ''}>
+                SPEND ${wpSettings.cost} WP (+${wpSettings.percent}%)
+              </button>
+            </div>
+          `
+              : ''
+          }
         </div>
       `;
     }
@@ -338,8 +362,9 @@ export class DeltaGreenCombatHudApp {
     const actor = this.resolveActiveActor();
     const skills = extractSkills(actor);
     const skill = skills.find((s) => s.key === skillKey) || { label: skillKey, value: 30 };
-    const wpBonus = this.wpBonusActive ? 20 : 0;
+    const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
+    this.wpBonusAmount = 0;
 
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const outcome = evaluatePercentileRoll(skill.value, rollVal, { wpBonus });
@@ -369,8 +394,9 @@ export class DeltaGreenCombatHudApp {
     const skills = extractSkills(actor);
     const skillObj = skills.find((s) => s.label.toLowerCase() === weapon.skill.toLowerCase()) || { value: 30 };
 
-    const wpBonus = this.wpBonusActive ? 20 : 0;
+    const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
+    this.wpBonusAmount = 0;
 
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const attackOutcome = evaluatePercentileRoll(skillObj.value, rollVal, { wpBonus });
@@ -412,8 +438,9 @@ export class DeltaGreenCombatHudApp {
   async triggerSanityRoll() {
     const actor = this.resolveActiveActor();
     const vitals = extractVitals(actor);
-    const wpBonus = this.wpBonusActive ? 20 : 0;
+    const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
+    this.wpBonusAmount = 0;
 
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const outcome = evaluatePercentileRoll(vitals.san.value, rollVal, { wpBonus });
@@ -435,12 +462,20 @@ export class DeltaGreenCombatHudApp {
     return outcome;
   }
 
-  /** Trigger WP Spend for +20% Bonus */
+  /** Trigger WP Spend for Bonus */
   async triggerWillpowerSpend() {
+    const wpSettings = this.getWpBoostSettings();
+    if (!wpSettings.enabled) {
+      if (typeof ui !== 'undefined' && ui.notifications) {
+        ui.notifications.warn('Willpower Boost is disabled in module settings.');
+      }
+      return { success: false, reason: 'Disabled' };
+    }
+
     const actor = this.resolveActiveActor();
     const vitals = extractVitals(actor);
 
-    const spendResult = spendWillpowerForBonus(vitals);
+    const spendResult = spendWillpowerForBonus(vitals, wpSettings.cost, wpSettings.percent);
     if (!spendResult.success) {
       if (typeof ui !== 'undefined' && ui.notifications) {
         ui.notifications.warn(spendResult.reason);
@@ -449,6 +484,7 @@ export class DeltaGreenCombatHudApp {
     }
 
     this.wpBonusActive = true;
+    this.wpBonusAmount = spendResult.bonus;
 
     // Update actor WP if in Foundry environment
     if (actor && typeof actor.update === 'function') {
@@ -457,7 +493,7 @@ export class DeltaGreenCombatHudApp {
     }
 
     if (typeof ui !== 'undefined' && ui.notifications) {
-      ui.notifications.info('+20% Willpower Boost Active for next roll!');
+      ui.notifications.info(`+${spendResult.bonus}% Willpower Boost Active for next roll!`);
     }
 
     this.render();

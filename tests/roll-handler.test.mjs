@@ -70,16 +70,24 @@ describe('Roll Handler Verification', () => {
     expect(failedSanRoll.sanLossFormula).toBe('1d6');
   });
 
-  it('handles spending Willpower Points', () => {
+  it('handles spending Willpower Points with default and custom costs/bonuses', () => {
     const vitals = { wp: { value: 5, max: 10 } };
     const res = spendWillpowerForBonus(vitals);
     expect(res.success).toBe(true);
     expect(res.wpRemaining).toBe(4);
     expect(res.bonus).toBe(20);
 
-    const emptyVitals = { wp: { value: 0, max: 10 } };
-    const emptyRes = spendWillpowerForBonus(emptyVitals);
-    expect(emptyRes.success).toBe(false);
-    expect(emptyRes.reason).toContain('Insufficient');
+    // Custom cost (2 WP) and custom bonus (+30%)
+    const customVitals = { wp: { value: 5, max: 10 } };
+    const customRes = spendWillpowerForBonus(customVitals, 2, 30);
+    expect(customRes.success).toBe(true);
+    expect(customRes.wpRemaining).toBe(3);
+    expect(customRes.bonus).toBe(30);
+
+    // Fail if insufficient WP for custom cost
+    const lowVitals = { wp: { value: 1, max: 10 } };
+    const failRes = spendWillpowerForBonus(lowVitals, 2, 30);
+    expect(failRes.success).toBe(false);
+    expect(failRes.reason).toContain('Insufficient');
   });
 });
