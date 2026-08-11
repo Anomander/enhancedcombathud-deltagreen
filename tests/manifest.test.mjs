@@ -13,7 +13,7 @@ describe('module.json Manifest Verification', () => {
 
   it('declares compatibility range for Foundry v11-v14', () => {
     expect(manifest.compatibility.minimum).toBe('11');
-    expect(manifest.compatibility.verified).toBe('12');
+    expect(['12', '14']).toContain(manifest.compatibility.verified);
   });
 
   it('declares entrypoint ES module script that exists', () => {
@@ -24,8 +24,9 @@ describe('module.json Manifest Verification', () => {
   });
 
   it('declares stylesheet path that exists', () => {
-    expect(manifest.styles).toContain('styles/delta-green-combat-hud.css');
-    for (const style of manifest.styles) {
+    const stylePaths = manifest.styles.map((s) => (typeof s === 'string' ? s : s.src));
+    expect(stylePaths).toContain('styles/delta-green-combat-hud.css');
+    for (const style of stylePaths) {
       expect(fs.existsSync(path.resolve(process.cwd(), style))).toBe(true);
     }
   });

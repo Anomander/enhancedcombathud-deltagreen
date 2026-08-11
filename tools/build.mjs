@@ -112,7 +112,7 @@ function verifyManifest() {
   const declared = [
     ...(manifest.esmodules || []),
     ...(manifest.scripts || []),
-    ...(manifest.styles || []),
+    ...(manifest.styles || []).map((s) => (typeof s === 'string' ? s : s.src)),
     ...(manifest.languages || []).map((l) => l.path)
   ];
 

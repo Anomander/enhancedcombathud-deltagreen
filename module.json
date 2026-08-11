@@ -1,39 +1,52 @@
 {
   "id": "delta-green-combat-hud",
   "title": "Delta Green Enhanced Combat HUD",
-  "description": "An Enhanced Combat HUD interface tailored specifically for Delta Green in Foundry VTT. Features agent vitals, weapon sets, combat skills, sanity/willpower actions, movement tracking, and target selection.",
+  "description": "<p>An Enhanced Combat HUD interface tailored specifically for Delta Green in Foundry VTT. Features agent vitals, weapon sets, combat skills, sanity/willpower actions, movement tracking, and target selection.</p>",
   "version": "1.0.0",
   "compatibility": {
     "minimum": "11",
-    "verified": "12",
+    "verified": "14",
     "maximum": "14"
   },
   "authors": [
     {
       "name": "Anomander",
-      "url": "https://github.com/Anomander"
+      "url": "https://github.com/Anomander",
+      "flags": {}
     }
   ],
   "esmodules": [
     "scripts/delta-green-combat-hud.mjs"
   ],
   "styles": [
-    "styles/delta-green-combat-hud.css"
+    {
+      "src": "styles/delta-green-combat-hud.css"
+    }
   ],
   "languages": [
     {
       "lang": "en",
       "name": "English",
-      "path": "lang/en.json"
+      "path": "lang/en.json",
+      "flags": {}
     },
     {
       "lang": "es",
       "name": "Español",
-      "path": "lang/es.json"
+      "path": "lang/es.json",
+      "flags": {}
     }
   ],
   "relationships": {
     "systems": [
+      {
+        "id": "deltagreen",
+        "type": "system",
+        "manifest": "https://raw.githubusercontent.com/deltagreen-foundryvtt/delta-green-foundry-vtt-system/main/system.json",
+        "compatibility": {
+          "minimum": "1.0.0"
+        }
+      },
       {
         "id": "delta-green",
         "type": "system",
@@ -48,5 +61,6 @@
   "manifest": "https://github.com/Anomander/delta-green-combat-hud/releases/latest/download/module.json",
   "download": "https://github.com/Anomander/delta-green-combat-hud/releases/download/release-1.0.0/module.zip",
   "readme": "README.md",
-  "license": "LICENSE"
+  "license": "LICENSE",
+  "flags": {}
 }
