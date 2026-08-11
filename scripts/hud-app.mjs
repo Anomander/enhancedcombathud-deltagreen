@@ -2,7 +2,7 @@
  * Application HUD controller for Delta Green Enhanced Combat HUD.
  */
 
-import { extractVitals, extractSkills, extractWeapons, extractTacticalActions } from './actor-adapter.mjs';
+import { extractVitals, extractSkills, extractWeapons, extractTacticalActions, getActorItems } from './actor-adapter.mjs';
 import { evaluatePercentileRoll, evaluateLethalityRoll, spendWillpowerForBonus } from './roll-handler.mjs';
 import { TargetManager } from './target-manager.mjs';
 import { CombatTracker } from './combat-tracker.mjs';
@@ -310,7 +310,7 @@ export class DeltaGreenCombatHudApp {
     this.element.querySelectorAll('.btn-roll-weapon').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         const id = e.currentTarget.dataset.weaponId;
-        await this.triggerWeaponRoll(id);
+        await this.triggerWeaponRoll(id, e);
       });
     });
 
@@ -318,7 +318,7 @@ export class DeltaGreenCombatHudApp {
     this.element.querySelectorAll('.btn-roll-skill').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         const key = e.currentTarget.dataset.skillKey;
-        await this.triggerSkillRoll(key);
+        await this.triggerSkillRoll(key, e);
       });
     });
 
@@ -331,8 +331,8 @@ export class DeltaGreenCombatHudApp {
 
     // SAN Roll button
     this.element.querySelectorAll('.btn-roll-san').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        await this.triggerSanityRoll();
+      btn.addEventListener('click', async (e) => {
+        await this.triggerSanityRoll(e);
       });
     });
 
@@ -357,15 +357,45 @@ export class DeltaGreenCombatHudApp {
     }
   }
 
+  /** Retrieve system roll class from CONFIG.Dice or game.deltagreen */
+  getDGRollClass(className) {
+    if (typeof CONFIG !== 'undefined' && CONFIG.Dice?.rolls) {
+      const cls = CONFIG.Dice.rolls.find((c) => c.name === className);
+      if (cls) return cls;
+    }
+    if (typeof game !== 'undefined' && game.deltagreen?.[className]) {
+      return game.deltagreen[className];
+    }
+    return null;
+  }
+
   /** Execute Skill Roll */
-  async triggerSkillRoll(skillKey) {
+  async triggerSkillRoll(skillKey, event = {}) {
     const actor = this.resolveActiveActor();
-    const skills = extractSkills(actor);
-    const skill = skills.find((s) => s.key === skillKey) || { label: skillKey, value: 30 };
     const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
     this.wpBonusAmount = 0;
 
+    const DGPercentileRoll = this.getDGRollClass('DGPercentileRoll');
+
+    if (actor && DGPercentileRoll && typeof actor.sheet?.processRoll === 'function') {
+      const rollOptions = {
+        rollType: 'skill',
+        key: skillKey,
+        actor
+      };
+
+      const roll = new DGPercentileRoll('1D100', {}, rollOptions);
+      if (wpBonus) roll.modifier += wpBonus;
+
+      await actor.sheet.processRoll(event, roll);
+      this.render();
+      return roll;
+    }
+
+    // Fallback for unit testing or non-Foundry environment
+    const skills = extractSkills(actor);
+    const skill = skills.find((s) => s.key === skillKey) || { label: skillKey, value: 30 };
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const outcome = evaluatePercentileRoll(skill.value, rollVal, { wpBonus });
 
@@ -387,30 +417,58 @@ export class DeltaGreenCombatHudApp {
   }
 
   /** Execute Weapon Roll */
-  async triggerWeaponRoll(weaponId) {
+  async triggerWeaponRoll(weaponId, event = {}) {
     const actor = this.resolveActiveActor();
     const weapons = extractWeapons(actor);
-    const weapon = weapons.find((w) => w.id === weaponId) || weapons[0];
-    const skills = extractSkills(actor);
-    const skillObj = skills.find((s) => s.label.toLowerCase() === weapon.skill.toLowerCase()) || { value: 30 };
+    const weaponData = weapons.find((w) => w.id === weaponId) || weapons[0];
 
     const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
     this.wpBonusAmount = 0;
 
+    const DGPercentileRoll = this.getDGRollClass('DGPercentileRoll');
+
+    if (actor && DGPercentileRoll && typeof actor.sheet?.processRoll === 'function') {
+      const items = getActorItems(actor);
+      const item = items.find((i) => (i.id || i._id) === weaponId) || items.find((i) => i.name === weaponData.name);
+
+      const skillKey = item?.system?.skill || weaponData.skillKey || 'firearms';
+      const rollOptions = {
+        rollType: 'weapon',
+        key: skillKey,
+        actor,
+        item
+      };
+
+      const roll = new DGPercentileRoll('1D100', {}, rollOptions);
+      if (wpBonus) roll.modifier += wpBonus;
+
+      await actor.sheet.processRoll(event, roll);
+
+      if (roll.isSuccess && item && typeof item.roll === 'function') {
+        await item.roll(roll.isCritical);
+      }
+
+      this.render();
+      return roll;
+    }
+
+    // Fallback for unit testing or non-Foundry environment
+    const skills = extractSkills(actor);
+    const skillObj = skills.find((s) => s.label.toLowerCase() === weaponData.skill.toLowerCase()) || { value: 30 };
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const attackOutcome = evaluatePercentileRoll(skillObj.value, rollVal, { wpBonus });
 
     let lethalityResult = null;
-    if (attackOutcome.isSuccess && weapon.lethality > 0) {
+    if (attackOutcome.isSuccess && weaponData.lethality > 0) {
       const lethalityRollVal = Math.floor(Math.random() * 100) + 1;
-      lethalityResult = evaluateLethalityRoll(weapon.lethality, lethalityRollVal);
+      lethalityResult = evaluateLethalityRoll(weaponData.lethality, lethalityRollVal);
     }
 
     const message = `
       <div class="dg-chat-card">
-        <h3>${actor?.name || 'Agent'} — ${weapon.name} Attack</h3>
-        <p>Skill: ${weapon.skill} (${attackOutcome.effectiveTarget}%) | Roll: <strong>${rollVal}</strong></p>
+        <h3>${actor?.name || 'Agent'} — ${weaponData.name} Attack</h3>
+        <p>Skill: ${weaponData.skill} (${attackOutcome.effectiveTarget}%) | Roll: <strong>${rollVal}</strong></p>
         <div class="result-badge ${attackOutcome.resultType}">
           ${attackOutcome.resultType.toUpperCase().replace('_', ' ')}
         </div>
@@ -418,7 +476,7 @@ export class DeltaGreenCombatHudApp {
           lethalityResult
             ? `
           <div class="lethality-chat-box">
-            <strong>Lethality Roll (${weapon.lethality}%):</strong> ${lethalityResult.roll}
+            <strong>Lethality Roll (${weaponData.lethality}%):</strong> ${lethalityResult.roll}
             <br/>${lethalityResult.isLethal ? '💥 <strong style="color:red">LETHAL KILL!</strong>' : `Damage: ${lethalityResult.nonLethalDamage} HP`}
           </div>
         `
@@ -435,13 +493,31 @@ export class DeltaGreenCombatHudApp {
   }
 
   /** Execute Sanity Roll */
-  async triggerSanityRoll() {
+  async triggerSanityRoll(event = {}) {
     const actor = this.resolveActiveActor();
-    const vitals = extractVitals(actor);
     const wpBonus = this.wpBonusActive ? (this.wpBonusAmount || 20) : 0;
     this.wpBonusActive = false;
     this.wpBonusAmount = 0;
 
+    const DGPercentileRoll = this.getDGRollClass('DGPercentileRoll');
+
+    if (actor && DGPercentileRoll && typeof actor.sheet?.processRoll === 'function') {
+      const rollOptions = {
+        rollType: 'sanity',
+        key: 'sanity',
+        actor
+      };
+
+      const roll = new DGPercentileRoll('1D100', {}, rollOptions);
+      if (wpBonus) roll.modifier += wpBonus;
+
+      await actor.sheet.processRoll(event, roll);
+      this.render();
+      return roll;
+    }
+
+    // Fallback for unit testing or non-Foundry environment
+    const vitals = extractVitals(actor);
     const rollVal = Math.floor(Math.random() * 100) + 1;
     const outcome = evaluatePercentileRoll(vitals.san.value, rollVal, { wpBonus });
 
