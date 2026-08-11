@@ -19,6 +19,8 @@
   "DG_HUD.Settings.WpBoostCostHint": "Número de Puntos de Voluntad gastados por impulso (predeterminado: 1).",
   "DG_HUD.Settings.WpBoostPercentName": "Bonificación del Impulso (%)",
   "DG_HUD.Settings.WpBoostPercentHint": "Porcentaje de bonificación sumado a la siguiente tirada (predeterminado: 20%).",
+  "DG_HUD.Settings.DebugModeName": "Habilitar Registro de Depuración",
+  "DG_HUD.Settings.DebugModeHint": "Registra información detallada de diagnóstico en la consola del desarrollador del navegador.",
   "DG_HUD.Vitals.HP": "Puntos de Golpe",
   "DG_HUD.Vitals.WP": "Fuerza de Voluntad",
   "DG_HUD.Vitals.SAN": "Cordura",

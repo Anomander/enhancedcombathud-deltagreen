@@ -9,13 +9,14 @@ import { extractVitals, extractSkills, extractWeapons, extractTacticalActions } 
 import { evaluatePercentileRoll, evaluateLethalityRoll, spendWillpowerForBonus } from './roll-handler.mjs';
 import { TargetManager } from './target-manager.mjs';
 import { CombatTracker } from './combat-tracker.mjs';
+import { Logger } from './logger.mjs';
 
 // Module instance singletons
 let hudInstance = null;
 let apiInstance = null;
 
 Hooks.once('init', () => {
-  console.log('Delta Green | Initializing Enhanced Combat HUD');
+  Logger.info('Initializing Enhanced Combat HUD');
   registerSettings();
 });
 
@@ -25,6 +26,7 @@ Hooks.once('ready', () => {
 
   // Mount HUD to DOM
   hudInstance.mount(document.body);
+  Logger.debug('Mounted HUD element to DOM body');
 
   // Register public global API
   if (typeof game !== 'undefined') {
@@ -35,11 +37,21 @@ Hooks.once('ready', () => {
   if (typeof ui !== 'undefined') {
     ui.deltaGreenCombatHud = apiInstance;
   }
+  Logger.debug('Registered global API instance ui.deltaGreenCombatHud');
+
+  // Auto-show HUD if combat is already active on page load/refresh
+  const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  const isCombatActive = typeof game !== 'undefined' && (game.combat?.started || (game.combats?.contents && game.combats.contents.some((c) => c.started)));
+  if (autoOpen && isCombatActive) {
+    Logger.debug('Active combat detected on page load/refresh — auto-showing HUD');
+    hudInstance.show();
+  }
 });
 
 // Auto-open or update HUD on token control change
 Hooks.on('controlToken', (token, controlled) => {
   if (!hudInstance) return;
+  Logger.debug('Hook: controlToken', { name: token?.name, controlled });
   if (controlled) {
     hudInstance.controlledActor = token.actor;
     if (hudInstance.visible) hudInstance.render();
@@ -50,6 +62,7 @@ Hooks.on('controlToken', (token, controlled) => {
 Hooks.on('combatStart', (combat) => {
   if (!hudInstance) return;
   const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  Logger.debug('Hook: combatStart', { combatId: combat.id, autoOpen });
   if (autoOpen) {
     hudInstance.show();
   }
@@ -60,6 +73,7 @@ Hooks.on('deleteCombat', (combat) => {
   if (!hudInstance) return;
   const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
   const remainingActive = typeof game !== 'undefined' && game.combats?.contents ? game.combats.contents.some((c) => c.id !== combat.id && c.started) : false;
+  Logger.debug('Hook: deleteCombat', { combatId: combat.id, autoOpen, remainingActive });
   if (autoOpen && !remainingActive) {
     hudInstance.hide();
   }
@@ -70,6 +84,7 @@ Hooks.on('updateCombat', (combat, delta) => {
   if (!hudInstance) return;
 
   const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  Logger.debug('Hook: updateCombat', { combatId: combat.id, round: combat.round, turn: combat.turn, started: combat.started, autoOpen });
   if (combat.started && autoOpen && !hudInstance.visible) {
     hudInstance.show();
   } else if (!combat.started && autoOpen && hudInstance.visible) {

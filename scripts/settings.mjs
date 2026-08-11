@@ -76,6 +76,16 @@ export function registerSettings() {
     default: 20
   });
 
+  // Debug Logging Toggle
+  game.settings.register(MODULE_ID, 'debugMode', {
+    name: 'DG_HUD.Settings.DebugModeName',
+    hint: 'DG_HUD.Settings.DebugModeHint',
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
   // Register Shift+A keybinding
   if (game.keybindings) {
     game.keybindings.register(MODULE_ID, 'toggleHud', {

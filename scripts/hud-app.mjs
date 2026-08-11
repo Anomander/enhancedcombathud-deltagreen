@@ -6,6 +6,7 @@ import { extractVitals, extractSkills, extractWeapons, extractTacticalActions, g
 import { evaluatePercentileRoll, evaluateLethalityRoll, spendWillpowerForBonus } from './roll-handler.mjs';
 import { TargetManager } from './target-manager.mjs';
 import { CombatTracker } from './combat-tracker.mjs';
+import { Logger } from './logger.mjs';
 
 export class DeltaGreenCombatHudApp {
   constructor() {
@@ -41,12 +42,14 @@ export class DeltaGreenCombatHudApp {
     container.appendChild(wrapper);
     this.element = wrapper;
 
+    Logger.debug('HUD mounted to element wrapper');
     this.render();
   }
 
   /** Toggle HUD display */
   toggle() {
     this.visible = !this.visible;
+    Logger.debug('HUD toggled', { visible: this.visible });
     if (this.element) {
       this.element.classList.toggle('dg-hud-hidden', !this.visible);
     }
@@ -55,6 +58,7 @@ export class DeltaGreenCombatHudApp {
 
   show() {
     this.visible = true;
+    Logger.debug('HUD show() called — sliding up from bottom');
     if (this.element) {
       this.element.classList.remove('dg-hud-hidden');
     }
@@ -63,6 +67,7 @@ export class DeltaGreenCombatHudApp {
 
   hide() {
     this.visible = false;
+    Logger.debug('HUD hide() called — sliding down off-screen');
     if (this.element) {
       this.element.classList.add('dg-hud-hidden');
     }
@@ -70,14 +75,71 @@ export class DeltaGreenCombatHudApp {
 
   /** Get active token / actor in Foundry */
   resolveActiveActor() {
+    // 1. Explicitly controlled token on canvas
     if (typeof canvas !== 'undefined' && canvas.tokens?.controlled?.length) {
       const token = canvas.tokens.controlled[0];
-      return token.actor || null;
+      if (token?.actor) {
+        Logger.debug('Resolved active actor from canvas controlled token', { actorName: token.actor.name, actorId: token.actor.id });
+        return token.actor;
+      }
     }
+
+    // 2. Active combatant in combat turn order
+    if (typeof game !== 'undefined' && game.combat?.started) {
+      const combatantActor = game.combat.combatant?.actor || game.combat.combatant?.token?.actor;
+      if (combatantActor) {
+        Logger.debug('Resolved active actor from combatant turn order', { actorName: combatantActor.name, actorId: combatantActor.id });
+        return combatantActor;
+      }
+    }
+
+    // 3. Assigned user character
     if (typeof game !== 'undefined' && game.user?.character) {
+      Logger.debug('Resolved active actor from user assigned character', { actorName: game.user.character.name });
       return game.user.character;
     }
-    return this.controlledActor;
+
+    // 4. Cached controlled actor
+    if (this.controlledActor) {
+      Logger.debug('Resolved active actor from cached controlledActor property', { actorName: this.controlledActor.name });
+      return this.controlledActor;
+    }
+
+    // 5. Fallback: First actor in game.actors if available
+    if (typeof game !== 'undefined' && game.actors?.contents?.length) {
+      Logger.debug('Resolved active actor fallback from world game.actors list', { actorName: game.actors.contents[0].name });
+      return game.actors.contents[0];
+    }
+
+    Logger.debug('No active actor document could be resolved (null)');
+    return null;
+  }
+
+  /**
+   * Determine if it is currently the current user's turn in active combat.
+   * @param {object} [actor]
+   * @returns {boolean}
+   */
+  isUserTurn(actor) {
+    if (typeof game === 'undefined') return true;
+    if (!game.combat?.started) return true;
+    if (game.user?.isGM) return true;
+
+    const combatant = game.combat.combatant;
+    if (!combatant) return false;
+
+    const currentTurnActor = combatant.actor || combatant.token?.actor;
+    if (!currentTurnActor) return false;
+
+    if (currentTurnActor.isOwner) return true;
+
+    const sameActorId =
+      (actor?.id && currentTurnActor.id && actor.id === currentTurnActor.id) ||
+      (actor?._id && currentTurnActor._id && actor._id === currentTurnActor._id);
+
+    if (sameActorId && actor.isOwner) return true;
+
+    return false;
   }
 
   /** Render HUD HTML */
@@ -92,6 +154,22 @@ export class DeltaGreenCombatHudApp {
     const combatState = this.combatTracker.update(typeof game !== 'undefined' ? game.combat : null, actor?.id);
     const targetState = this.targetManager.getState();
     const wpSettings = this.getWpBoostSettings();
+    const isTurnActive = this.isUserTurn(actor);
+    const isCombatStarted = typeof game !== 'undefined' && game.combat?.started;
+    const showEndTurn = isCombatStarted && isTurnActive;
+
+    Logger.debug('Rendering HUD state', {
+      actorName: vitals.name,
+      activeTab: this.activeTab,
+      hp: `${vitals.hp.value}/${vitals.hp.max}`,
+      wp: `${vitals.wp.value}/${vitals.wp.max}`,
+      san: `${vitals.san.value}/${vitals.san.max}`,
+      weaponsCount: weapons.length,
+      skillsCount: skills.length,
+      wpBonusActive: this.wpBonusActive,
+      isTurnActive,
+      showEndTurn
+    });
 
     const html = `
       <div class="dg-hud-dock ${this.wpBonusActive ? 'wp-bonus-glow' : ''}">
@@ -152,7 +230,7 @@ export class DeltaGreenCombatHudApp {
 
           <!-- Tab Contents -->
           <div class="dg-hud-tab-content">
-            ${this.renderTabContent(this.activeTab, weapons, skills, tactics, vitals)}
+            ${this.renderTabContent(this.activeTab, weapons, skills, tactics, vitals, isTurnActive)}
           </div>
         </div>
 
@@ -173,10 +251,16 @@ export class DeltaGreenCombatHudApp {
           `
               : `
             <div class="dg-hud-turn-box">
-              <div class="round-indicator">ROUND ${combatState.round}</div>
-              <button class="dg-btn-action btn-end-turn" ${combatState.active ? '' : 'disabled'}>
-                <i class="fas fa-step-forward"></i> END TURN
-              </button>
+              <div class="round-indicator">${isCombatStarted ? `ROUND ${combatState.round}` : 'STANDBY'}</div>
+              ${
+                showEndTurn
+                  ? `
+                <button class="dg-btn-action btn-end-turn">
+                  <i class="fas fa-step-forward"></i> END TURN
+                </button>
+              `
+                  : ''
+              }
               ${
                 wpSettings.enabled
                   ? `
@@ -198,14 +282,17 @@ export class DeltaGreenCombatHudApp {
   }
 
   /** Render individual tab contents */
-  renderTabContent(tab, weapons, skills, tactics, vitals) {
+  renderTabContent(tab, weapons, skills, tactics, vitals, isTurnActive = true) {
+    const isCombatActive = typeof game !== 'undefined' && game.combat?.started;
+    const canAttack = !isCombatActive || isTurnActive;
+
     if (tab === 'weapons') {
       return `
         <div class="dg-weapon-grid">
           ${weapons
             .map(
               (w) => `
-            <div class="dg-weapon-card" data-weapon-id="${w.id}">
+            <div class="dg-weapon-card ${!canAttack ? 'weapon-disabled' : ''}" data-weapon-id="${w.id}">
               <img src="${w.img}" alt="${w.name}" class="weapon-img" />
               <div class="weapon-info">
                 <div class="weapon-name">${w.name}</div>
@@ -214,9 +301,18 @@ export class DeltaGreenCombatHudApp {
                   ${w.lethality > 0 ? `<span class="lethality-badge">Lethality: ${w.lethality}%</span>` : ''}
                 </div>
               </div>
-              <button class="dg-btn-roll btn-roll-weapon" data-weapon-id="${w.id}">
-                ATTACK
-              </button>
+              <div class="weapon-card-buttons flexrow">
+                <button class="dg-btn-roll btn-roll-weapon ${!canAttack ? 'disabled' : ''}"
+                        data-weapon-id="${w.id}"
+                        ${!canAttack ? 'disabled title="Not your turn"' : ''}>
+                  ${!canAttack ? 'WAIT TURN' : 'ATTACK'}
+                </button>
+                <button class="dg-btn-sm btn-roll-damage ${!canAttack ? 'disabled' : ''}"
+                        data-weapon-id="${w.id}"
+                        ${!canAttack ? 'disabled title="Not your turn"' : 'title="Roll Damage / Lethality"'}>
+                  <i class="fas fa-dice-d6"></i> DMG
+                </button>
+              </div>
             </div>
           `
             )
@@ -311,6 +407,14 @@ export class DeltaGreenCombatHudApp {
       btn.addEventListener('click', async (e) => {
         const id = e.currentTarget.dataset.weaponId;
         await this.triggerWeaponRoll(id, e);
+      });
+    });
+
+    // Weapon Damage button
+    this.element.querySelectorAll('.btn-roll-damage').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.weaponId;
+        await this.triggerDamageRoll(id);
       });
     });
 
@@ -419,6 +523,15 @@ export class DeltaGreenCombatHudApp {
   /** Execute Weapon Roll */
   async triggerWeaponRoll(weaponId, event = {}) {
     const actor = this.resolveActiveActor();
+
+    if (typeof game !== 'undefined' && game.combat?.started && !this.isUserTurn(actor)) {
+      Logger.warn('Weapon roll rejected: Not user turn in combat');
+      if (typeof ui !== 'undefined' && ui.notifications) {
+        ui.notifications.warn('You cannot attack when it is not your turn.');
+      }
+      return null;
+    }
+
     const weapons = extractWeapons(actor);
     const weaponData = weapons.find((w) => w.id === weaponId) || weapons[0];
 
@@ -445,8 +558,8 @@ export class DeltaGreenCombatHudApp {
 
       await actor.sheet.processRoll(event, roll);
 
-      if (roll.isSuccess && item && typeof item.roll === 'function') {
-        await item.roll(roll.isCritical);
+      if (roll.isSuccess && item) {
+        await this.promptDamageRoll(item, roll.isCritical, weaponData);
       }
 
       this.render();
@@ -490,6 +603,102 @@ export class DeltaGreenCombatHudApp {
     }
     this.render();
     return attackOutcome;
+  }
+
+  /** Execute direct Damage/Lethality Roll for a weapon */
+  async triggerDamageRoll(weaponId) {
+    const actor = this.resolveActiveActor();
+
+    if (typeof game !== 'undefined' && game.combat?.started && !this.isUserTurn(actor)) {
+      Logger.warn('Damage roll rejected: Not user turn in combat');
+      if (typeof ui !== 'undefined' && ui.notifications) {
+        ui.notifications.warn('You cannot roll damage when it is not your turn.');
+      }
+      return null;
+    }
+
+    const weapons = extractWeapons(actor);
+    const weaponData = weapons.find((w) => w.id === weaponId) || weapons[0];
+
+    const items = getActorItems(actor);
+    const item = items.find((i) => (i.id || i._id) === weaponId) || items.find((i) => i.name === weaponData.name);
+
+    if (item && typeof item.roll === 'function') {
+      Logger.debug('Triggering direct item damage roll', { weaponName: item.name });
+      return await item.roll(false);
+    }
+
+    Logger.warn('Cannot roll damage: Item document or item.roll method not found');
+    return null;
+  }
+
+  /** Prompt user with pop-up dialog for Damage/Lethality on successful attack */
+  async promptDamageRoll(item, isCritical = false, weaponData = null) {
+    if (!item) return;
+
+    const isLethal = Boolean(item.system?.isLethal || weaponData?.lethality > 0);
+    const title = `${item.name} — ${isCritical ? 'Critical Hit!' : 'Attack Hit!'}`;
+    const damageTypeLabel = isLethal ? 'Lethality' : 'Damage';
+    const formulaText = isLethal ? `${item.system?.lethality || weaponData?.lethality}% Lethality` : `${item.system?.damage || weaponData?.damage || '1d10'}`;
+
+    Logger.debug('Prompting damage/lethality pop-up dialog', { itemName: item.name, isLethal, isCritical });
+
+    // 1. Foundry V12 DialogV2
+    if (typeof foundry !== 'undefined' && foundry.applications?.api?.DialogV2) {
+      const { DialogV2 } = foundry.applications.api;
+      try {
+        const confirmRoll = await DialogV2.confirm({
+          window: { title },
+          content: `
+            <div style="padding: 4px;">
+              <p><strong>${isCritical ? '🎯 CRITICAL SUCCESS!' : '💥 SUCCESSFUL HIT!'}</strong></p>
+              <p>Would you like to roll <strong>${damageTypeLabel}</strong> for <strong>${item.name}</strong> (${formulaText})?</p>
+            </div>
+          `,
+          yes: { label: `<i class="fas fa-dice"></i> Roll ${damageTypeLabel}` },
+          no: { label: 'Skip' }
+        });
+
+        if (confirmRoll && typeof item.roll === 'function') {
+          await item.roll(isCritical);
+        }
+        return;
+      } catch (err) {
+        Logger.warn('DialogV2 error, falling back to Dialog', err);
+      }
+    }
+
+    // 2. Standard Foundry Dialog fallback
+    if (typeof Dialog !== 'undefined') {
+      new Dialog({
+        title,
+        content: `
+          <div style="padding: 4px;">
+            <p><strong>${isCritical ? '🎯 CRITICAL SUCCESS!' : '💥 SUCCESSFUL HIT!'}</strong></p>
+            <p>Would you like to roll <strong>${damageTypeLabel}</strong> for <strong>${item.name}</strong> (${formulaText})?</p>
+          </div>
+        `,
+        buttons: {
+          roll: {
+            icon: '<i class="fas fa-dice"></i>',
+            label: `Roll ${damageTypeLabel}`,
+            callback: async () => {
+              if (typeof item.roll === 'function') await item.roll(isCritical);
+            }
+          },
+          skip: {
+            label: 'Skip'
+          }
+        },
+        default: 'roll'
+      }).render(true);
+      return;
+    }
+
+    // 3. Fallback for unit testing
+    if (typeof item.roll === 'function') {
+      await item.roll(isCritical);
+    }
   }
 
   /** Execute Sanity Roll */

@@ -19,6 +19,8 @@
   "DG_HUD.Settings.WpBoostCostHint": "Number of Willpower Points spent per boost (default: 1).",
   "DG_HUD.Settings.WpBoostPercentName": "Willpower Boost Bonus (%)",
   "DG_HUD.Settings.WpBoostPercentHint": "Percentage bonus added to the next roll (default: 20%).",
+  "DG_HUD.Settings.DebugModeName": "Enable Debug Logging",
+  "DG_HUD.Settings.DebugModeHint": "Log detailed diagnostic information to the browser developer console.",
   "DG_HUD.Vitals.HP": "Hit Points",
   "DG_HUD.Vitals.WP": "Willpower",
   "DG_HUD.Vitals.SAN": "Sanity",

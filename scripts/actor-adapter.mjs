@@ -58,11 +58,34 @@ export function extractVitals(actor) {
   const bpVal = Number(sys.breakingPoint?.value ?? sys.attributes?.breakingPoint?.value ?? sys.breakingPoint ?? 40);
   const armorVal = Number(sys.armor?.value ?? sys.attributes?.armor?.value ?? sys.armor ?? 0);
 
+  // Respect system setting for private sanity
+  let keepSanityPrivate = false;
+  let isGM = false;
+  if (typeof game !== 'undefined') {
+    if (game.settings) {
+      try {
+        keepSanityPrivate = Boolean(game.settings.get('deltagreen', 'keepSanityPrivate'));
+      } catch {
+        keepSanityPrivate = false;
+      }
+    }
+    if (game.user) {
+      isGM = Boolean(game.user.isGM);
+    }
+  }
+
+  const hideSanity = keepSanityPrivate && !isGM;
+
   return {
     hp: { value: hpVal, max: hpMax, percentage: hpPct },
     wp: { value: wpVal, max: wpMax, percentage: wpPct },
-    san: { value: sanVal, max: sanMax, percentage: sanPct },
-    breakingPoint: bpVal,
+    san: {
+      value: hideSanity ? '???' : sanVal,
+      max: hideSanity ? '???' : sanMax,
+      percentage: hideSanity ? 0 : sanPct,
+      isPrivate: hideSanity
+    },
+    breakingPoint: hideSanity ? '???' : bpVal,
     armor: armorVal,
     name: actor.name || 'Agent',
     img: actor.img || 'icons/svg/mystery-man.svg'
@@ -100,7 +123,15 @@ export const CORE_SKILLS = [
  * @returns {Array<object>} Processed skill objects with value, label, category, and id.
  */
 export function extractSkills(actor) {
-  if (!actor) return [];
+  if (!actor) {
+    return CORE_SKILLS.map((skillDef) => ({
+      id: skillDef.key,
+      key: skillDef.key,
+      label: skillDef.label,
+      value: skillDef.defaultVal,
+      category: skillDef.category
+    }));
+  }
 
   const sys = actor.system || actor.data?.data || {};
   const sysSkills = sys.skills || {};

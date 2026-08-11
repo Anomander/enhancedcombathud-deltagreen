@@ -115,4 +115,34 @@ describe('Actor Adapter Verification', () => {
     expect(tactics.some((t) => t.id === 'dodge')).toBe(true);
     expect(tactics.some((t) => t.id === 'aim')).toBe(true);
   });
+
+  it('masks SAN and BP values to ??? when keepSanityPrivate setting is active and user is player', () => {
+    const mockActor = {
+      name: 'Agent Alphonse',
+      system: {
+        hp: { value: 10, max: 10 },
+        wp: { value: 10, max: 10 },
+        san: { value: 45, max: 80 },
+        breakingPoint: { value: 38 }
+      }
+    };
+
+    globalThis.game = {
+      settings: { get: (module, setting) => setting === 'keepSanityPrivate' },
+      user: { isGM: false }
+    };
+
+    const vitals = extractVitals(mockActor);
+    expect(vitals.san.value).toBe('???');
+    expect(vitals.san.max).toBe('???');
+    expect(vitals.breakingPoint).toBe('???');
+    expect(vitals.san.isPrivate).toBe(true);
+
+    // GM should still see actual values
+    globalThis.game.user.isGM = true;
+    const gmVitals = extractVitals(mockActor);
+    expect(gmVitals.san.value).toBe(45);
+    expect(gmVitals.breakingPoint).toBe(38);
+    expect(gmVitals.san.isPrivate).toBe(false);
+  });
 });
