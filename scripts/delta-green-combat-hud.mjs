@@ -62,18 +62,39 @@ Hooks.on('updateCombat', (combat, delta) => {
 
 // Render Token HUD control icon
 Hooks.on('getSceneControlButtons', (controls) => {
-  const tokenControls = controls.find((c) => c.name === 'token');
-  if (tokenControls && Array.isArray(tokenControls.tools)) {
-    tokenControls.tools.push({
+  try {
+    let tokenGroup = null;
+    if (Array.isArray(controls)) {
+      tokenGroup = controls.find((c) => c.name === 'token');
+    } else if (controls && typeof controls === 'object') {
+      tokenGroup = controls.token || Object.values(controls).find((c) => c?.name === 'token');
+    }
+
+    if (!tokenGroup) return;
+
+    const toolDef = {
       name: 'delta-green-combat-hud',
       title: 'DG_HUD.Controls.ToggleHudTitle',
       icon: 'fas fa-swords',
       visible: true,
+      button: true,
       onClick: () => {
         if (ui.deltaGreenCombatHud) ui.deltaGreenCombatHud.toggle();
       },
-      button: true
-    });
+      onChange: () => {
+        if (ui.deltaGreenCombatHud) ui.deltaGreenCombatHud.toggle();
+      }
+    };
+
+    if (Array.isArray(tokenGroup.tools)) {
+      if (!tokenGroup.tools.some((t) => t.name === 'delta-green-combat-hud')) {
+        tokenGroup.tools.push(toolDef);
+      }
+    } else if (tokenGroup.tools && typeof tokenGroup.tools === 'object') {
+      tokenGroup.tools['delta-green-combat-hud'] = toolDef;
+    }
+  } catch (error) {
+    console.error('Delta Green Combat HUD | Error adding control button:', error);
   }
 });
 

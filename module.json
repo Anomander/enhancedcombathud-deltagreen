@@ -46,14 +46,6 @@
         "compatibility": {
           "minimum": "1.0.0"
         }
-      },
-      {
-        "id": "delta-green",
-        "type": "system",
-        "manifest": "https://raw.githubusercontent.com/deltagreen-foundryvtt/delta-green-foundry-vtt-system/main/system.json",
-        "compatibility": {
-          "minimum": "1.0.0"
-        }
       }
     ]
   },
