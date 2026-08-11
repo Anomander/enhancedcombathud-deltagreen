@@ -1,0 +1,6 @@
+Delta Green Enhanced Combat HUD v1.0.0
+
+- Complete Enhanced Combat HUD for Delta Green in Foundry VTT.
+- Real-time Vitals dock: HP, WP, SAN, Breaking Point, Armor.
+- Weapon slots, lethality rolls, skill grid, and Willpower boost actions.
+- Target selection overlay and turn management.

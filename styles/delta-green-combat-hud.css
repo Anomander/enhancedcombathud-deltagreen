@@ -1,0 +1,332 @@
+/* ==========================================================================
+   Delta Green Enhanced Combat HUD Stylesheet
+   ========================================================================== */
+
+:root {
+  --dg-bg-dark: rgba(11, 14, 12, 0.92);
+  --dg-bg-panel: rgba(18, 25, 20, 0.85);
+  --dg-border-color: #1a4228;
+  --dg-accent-green: #00ff66;
+  --dg-accent-green-dim: #0a3d1c;
+  --dg-accent-amber: #ffaa00;
+  --dg-accent-red: #ff4444;
+  --dg-accent-blue: #33aaff;
+  --dg-text-main: #d0e6d6;
+  --dg-text-muted: #70997e;
+  --dg-font-mono: "Courier New", Courier, monospace;
+  --dg-font-sans: "Inter", -apple-system, Roboto, sans-serif;
+}
+
+.dg-hud-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  font-family: var(--dg-font-sans);
+  color: var(--dg-text-main);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.dg-hud-container.dg-hud-hidden {
+  opacity: 0;
+  transform: translate(-50%, 40px);
+  pointer-events: none;
+}
+
+.dg-hud-dock {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--dg-bg-dark);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--dg-border-color);
+  border-top: 2px solid var(--dg-accent-green);
+  border-radius: 8px;
+  padding: 12px 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 15px rgba(0, 255, 102, 0.1);
+  min-width: 820px;
+}
+
+.dg-hud-dock.wp-bonus-glow {
+  box-shadow: 0 0 25px rgba(51, 170, 255, 0.4), 0 12px 36px rgba(0, 0, 0, 0.75);
+  border-top-color: var(--dg-accent-blue);
+}
+
+/* Agent Vitals Box */
+.dg-hud-vitals-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--dg-bg-panel);
+  border: 1px solid var(--dg-border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 240px;
+}
+
+.dg-hud-portrait {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid var(--dg-accent-green);
+}
+
+.dg-hud-vitals-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.dg-hud-agent-name {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.dg-hud-stat-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--dg-font-mono);
+}
+
+.dg-hud-stat-bar .stat-label {
+  width: 26px;
+  font-weight: bold;
+  color: var(--dg-text-muted);
+}
+
+.bar-fill-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.hp-bar .bar-fill { background: linear-gradient(90deg, #ff4444, #cc2222); }
+.wp-bar .bar-fill { background: linear-gradient(90deg, #33aaff, #0077cc); }
+.san-bar .bar-fill { background: linear-gradient(90deg, #00ff66, #00aa44); }
+
+.dg-hud-sub-vitals {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--dg-text-muted);
+  font-family: var(--dg-font-mono);
+  margin-top: 2px;
+}
+
+/* Navigation Tabs & Center Panel */
+.dg-hud-action-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dg-hud-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--dg-border-color);
+  padding-bottom: 4px;
+}
+
+.dg-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--dg-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dg-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(0, 255, 102, 0.08);
+}
+
+.dg-tab-btn.active {
+  color: var(--dg-accent-green);
+  background: var(--dg-accent-green-dim);
+  border-bottom: 2px solid var(--dg-accent-green);
+}
+
+/* Grids & Cards */
+.dg-weapon-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.dg-weapon-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--dg-bg-panel);
+  border: 1px solid var(--dg-border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 220px;
+}
+
+.weapon-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.weapon-info {
+  flex: 1;
+}
+
+.weapon-name {
+  font-size: 11px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.weapon-meta {
+  font-size: 9px;
+  color: var(--dg-text-muted);
+}
+
+.lethality-badge {
+  color: var(--dg-accent-amber);
+  font-weight: bold;
+}
+
+.dg-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 95px;
+  overflow-y: auto;
+}
+
+.dg-skill-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--dg-bg-panel);
+  border: 1px solid var(--dg-border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--dg-text-main);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dg-skill-pill:hover {
+  background: var(--dg-accent-green-dim);
+  border-color: var(--dg-accent-green);
+}
+
+.skill-value {
+  font-family: var(--dg-font-mono);
+  color: var(--dg-accent-green);
+  font-weight: bold;
+}
+
+/* Buttons & Chat Cards */
+.dg-btn-roll, .dg-btn-action {
+  background: linear-gradient(180deg, #184226, #0e2917);
+  border: 1px solid var(--dg-accent-green);
+  color: var(--dg-accent-green);
+  font-size: 10px;
+  font-weight: bold;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dg-btn-roll:hover, .dg-btn-action:hover {
+  background: var(--dg-accent-green);
+  color: #000000;
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+}
+
+.dg-hud-right-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: 140px;
+}
+
+.dg-hud-turn-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.round-indicator {
+  font-size: 10px;
+  font-family: var(--dg-font-mono);
+  color: var(--dg-accent-amber);
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.btn-wp-boost {
+  border-color: var(--dg-accent-blue);
+  color: var(--dg-accent-blue);
+  background: linear-gradient(180deg, #10293d, #081724);
+}
+
+.btn-wp-boost:hover {
+  background: var(--dg-accent-blue);
+  color: #000000;
+  box-shadow: 0 0 10px rgba(51, 170, 255, 0.4);
+}
+
+.dg-chat-card {
+  font-family: var(--dg-font-sans);
+  background: #0f1411;
+  border: 1px solid #1f422b;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #e0eee4;
+}
+
+.result-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.result-badge.critical_success { background: #00ff66; color: #000; }
+.result-badge.success { background: #1a6636; color: #fff; }
+.result-badge.failure { background: #662222; color: #fff; }
+.result-badge.critical_failure { background: #ff4444; color: #fff; }

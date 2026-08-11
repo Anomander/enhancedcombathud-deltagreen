@@ -1,0 +1,27 @@
+<div class="dg-hud-vitals-box">
+  <img class="dg-hud-portrait" src="{{vitals.img}}" alt="{{vitals.name}}" />
+  <div class="dg-hud-vitals-info">
+    <div class="dg-hud-agent-name">{{vitals.name}}</div>
+    <div class="dg-hud-stat-bar hp-bar">
+      <span class="stat-label">HP</span>
+      <div class="bar-fill-track">
+        <div class="bar-fill" style="width: {{vitals.hp.percentage}}%"></div>
+      </div>
+      <span class="stat-value">{{vitals.hp.value}}/{{vitals.hp.max}}</span>
+    </div>
+    <div class="dg-hud-stat-bar wp-bar">
+      <span class="stat-label">WP</span>
+      <div class="bar-fill-track">
+        <div class="bar-fill" style="width: {{vitals.wp.percentage}}%"></div>
+      </div>
+      <span class="stat-value">{{vitals.wp.value}}/{{vitals.wp.max}}</span>
+    </div>
+    <div class="dg-hud-stat-bar san-bar">
+      <span class="stat-label">SAN</span>
+      <div class="bar-fill-track">
+        <div class="bar-fill" style="width: {{vitals.san.percentage}}%"></div>
+      </div>
+      <span class="stat-value">{{vitals.san.value}}/{{vitals.san.max}}</span>
+    </div>
+  </div>
+</div>
