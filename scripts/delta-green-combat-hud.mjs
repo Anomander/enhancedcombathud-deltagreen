@@ -46,13 +46,34 @@ Hooks.on('controlToken', (token, controlled) => {
   }
 });
 
-// Update HUD on combat updates
+// Slide up on combat start
+Hooks.on('combatStart', (combat) => {
+  if (!hudInstance) return;
+  const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  if (autoOpen) {
+    hudInstance.show();
+  }
+});
+
+// Slide down when combat ends / deleted
+Hooks.on('deleteCombat', (combat) => {
+  if (!hudInstance) return;
+  const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  const remainingActive = typeof game !== 'undefined' && game.combats?.contents ? game.combats.contents.some((c) => c.id !== combat.id && c.started) : false;
+  if (autoOpen && !remainingActive) {
+    hudInstance.hide();
+  }
+});
+
+// Update HUD on combat updates (round changes, turn changes, or combat state)
 Hooks.on('updateCombat', (combat, delta) => {
   if (!hudInstance) return;
 
-  const autoOpen = typeof game !== 'undefined' ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
+  const autoOpen = typeof game !== 'undefined' && game.settings ? game.settings.get(MODULE_ID, 'autoOpenCombat') : true;
   if (combat.started && autoOpen && !hudInstance.visible) {
     hudInstance.show();
+  } else if (!combat.started && autoOpen && hudInstance.visible) {
+    hudInstance.hide();
   }
 
   if (hudInstance.visible) {
