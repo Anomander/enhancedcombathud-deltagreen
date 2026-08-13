@@ -36,6 +36,8 @@
   "DG_HUD.Target.Many": "{count} objetivos",
   "DG_HUD.Target.Retarget": "Cambiar objetivo",
   "DG_HUD.Target.Select": "Elegir objetivo",
+  "DG_HUD.Target.Against": "Contra {targets}",
+  "DG_HUD.Target.Unnamed": "un objetivo no identificado",
 
   "DG_HUD.Prompt.Title": "Ataque acertado",
   "DG_HUD.Prompt.Question": "{weapon} acertó. ¿{roll}?",
@@ -73,6 +75,7 @@
   "DG_HUD.Notifications.WpInsufficient": "Puntos de Voluntad insuficientes.",
   "DG_HUD.Notifications.WpUnavailable": "Este actor no tiene Voluntad.",
   "DG_HUD.Notifications.NoPermissionToApply": "No puedes modificar ese objetivo — pide a tu Director que lo aplique.",
+  "DG_HUD.Notifications.SeveralTargets": "Hay varios objetivos marcados: no se aplicó nada. Marca uno solo para resolver el daño contra él.",
   "DG_HUD.Notifications.TargetGone": "Ese objetivo ya no existe.",
   "DG_HUD.Notifications.TargetHpUnreadable": "Ese objetivo no tiene puntos de vida legibles.",
   "DG_HUD.Notifications.DamageUnreadable": "Esa tirada no produjo un daño legible.",

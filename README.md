@@ -27,12 +27,17 @@ and Motivations, all rolled through the Delta Green system's own dice pipeline.
   exactly what the system's chat card would. The card stays as the record.
 - **Damage automation** — after a damage or Lethality roll against a target, the result is
   resolved through armour and armour piercing and offered in chat with an *Apply* button.
-  The write runs as whoever clicks it, so a Handler can apply a player's roll.
+  A failed Lethality proposes its tens+ones damage, as the rules do. It does not matter where
+  the roll came from — the HUD, the character sheet, or the buttons on the system's own chat
+  card. The write runs as whoever clicks it, so a Handler can apply a player's roll.
+- **Attack cards name their target** — *Against Cultist*, under the roll. Names honour each
+  token's display-name setting per viewer, so a target the Handler has kept nameless stays
+  nameless.
 - **Targeting** — a reticle beside the portrait frames your target's token art, names it, and
   offers a *Re-target* control. With nothing targeted it goes amber and says so, because that
   is exactly when damage automation cannot act. Names honour each token's display-name
-  setting, and an adversary's hit points or condition are never shown. Attacks ask Argon for a
-  target first, if you have its target picker switched on.
+  setting, and an adversary's hit points or condition are never shown. Target tokens the usual
+  Foundry way — hover and press `T`, or use the targeting tool.
 - **Reactions** — Dodge and Fight Back, shown only when the actor has the skill.
 - **Skills** — every skill the system defines, grouped into trained and untrained, including
   typed skills and Special Training.

@@ -65,6 +65,15 @@ function retarget() {
 
 export function createTargetHud(ARGON) {
   return class DGTargetHud extends ARGON.ButtonHud {
+    /** Watches the portrait's width so this block never overlaps it. */
+    #observer = null;
+
+    /** Renders run one at a time; see `render`. */
+    #chain = Promise.resolve();
+
+    /** Whether a render is already waiting behind the one in flight. */
+    #queued = false;
+
     get classes() {
       return [...super.classes, 'dg-target-hud'];
     }
@@ -164,6 +173,75 @@ export function createTargetHud(ARGON) {
     }
 
     /**
+     * Sit against the portrait's actual right edge.
+     *
+     * Argon pins this slot at a hardcoded `left: 375px` while declaring the
+     * portrait `min-width: 375px` — growable. Any system whose portrait exceeds
+     * that gets its side HUD drawn over the portrait, and ours does: two vitals
+     * rows measure ~461px together.
+     *
+     * Measured rather than tuned, because the width is not constant — an
+     * Unnatural shows no Sanity row, an armoured actor adds one, and Argon's
+     * scale setting moves everything. This is not repositioning Argon's chrome
+     * (ARCH-1); it is placing our own component where Argon's own layout says it
+     * belongs. Worth raising upstream.
+     */
+    #placeBesidePortrait() {
+      const portrait = ui.ARGON?.components?.portrait?.element;
+      if (!portrait?.offsetWidth) return;
+
+      this.element.style.left = `${portrait.offsetLeft + portrait.offsetWidth}px`;
+    }
+
+    /**
+     * Follow the portrait's width for as long as this component lives.
+     *
+     * Measuring once during render is not enough: Argon renders its components
+     * with `Promise.all`, so on a first bind the portrait is often still
+     * fetching its template and has no width yet. A ResizeObserver fires on
+     * first layout *and* on every later change — an actor switch, a scale
+     * change — so the placement cannot drift out of date.
+     */
+    #followPortrait() {
+      const portrait = ui.ARGON?.components?.portrait?.element;
+      if (!portrait || typeof ResizeObserver === 'undefined') return;
+
+      this.#observer?.disconnect();
+      this.#observer = new ResizeObserver(() => this.#placeBesidePortrait());
+      this.#observer.observe(portrait);
+    }
+
+    /**
+     * Render, but never two at once.
+     *
+     * `ButtonHud.render` *appends* its controls after `_renderInner` has run,
+     * and `_renderInner` is the only thing that clears the element. Two renders
+     * in flight therefore interleave — clear, clear, append, append — and the
+     * controls pile up. Foundry fires `targetToken` once per token, so dropping
+     * three targets fired three overlapping renders and left three stacked
+     * *Select target* buttons under a single reticle.
+     *
+     * Coalesced as well as serialised: at most one render waits behind the one
+     * in flight, and it reads the targeting state fresh when it runs, so the
+     * queue can never grow longer than the truth (UX-4).
+     */
+    async render(...args) {
+      if (this.#queued) return this.#chain;
+
+      this.#queued = true;
+      const previous = this.#chain;
+
+      this.#chain = (async () => {
+        // A failed render must not wedge every render after it.
+        await previous.catch(() => {});
+        this.#queued = false;
+        return this.#renderOnce(...args);
+      })();
+
+      return this.#chain;
+    }
+
+    /**
      * Undo ButtonHud's grid and stack the reticle, caption and control.
      *
      * Set inline rather than in the stylesheet, because **Argon writes this
@@ -173,7 +251,7 @@ export function createTargetHud(ARGON) {
      * won `justify-content` and the button's `flex` against our classes. Layout
      * therefore lives here; everything purely visual stays in CSS.
      */
-    async render(...args) {
+    async #renderOnce(...args) {
       await super.render(...args);
 
       Object.assign(this.element.style, {
@@ -205,6 +283,9 @@ export function createTargetHud(ARGON) {
           });
         }
       }
+
+      this.#placeBesidePortrait();
+      this.#followPortrait();
     }
   };
 }

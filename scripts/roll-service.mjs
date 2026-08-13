@@ -24,6 +24,33 @@ export const SYSTEM_ROLL_API_PATH = '/systems/deltagreen/module/roll/roll.js';
 export const SYSTEM_DIALOG_API_PATH = '/systems/deltagreen/module/roll/roll-dialogs.js';
 
 /**
+ * The key that marks a roll as one this module issued.
+ *
+ * It exists for exactly one reader. `roll-observer.mjs` watches chat for damage
+ * and Lethality rolls the module did not make — the system's own card buttons
+ * go straight to `actor.sheet.processRoll` and fire no hook — and republishes
+ * them. Without a mark it could not tell those apart from ours, and every roll
+ * from the HUD would be published twice. `roll.options` is serialised into the
+ * chat message, so the mark survives to where it is read.
+ *
+ * PAR-1 still holds: this changes no dialog, no modifier, no evaluation, and
+ * nothing the chat card renders. The roll is the same roll; it only remembers
+ * where it was issued. **Nothing may ever branch a roll on it.**
+ */
+export const ORIGIN_KEY = 'dgHudOrigin';
+
+/** Stamp a roll as this module's. Returns it, so it can wrap a construction. */
+export function markHudOrigin(roll) {
+  if (roll?.options) roll.options[ORIGIN_KEY] = true;
+  return roll;
+}
+
+/** Did this module issue that roll? */
+export function isHudOrigin(roll) {
+  return roll?.options?.[ORIGIN_KEY] === true;
+}
+
+/**
  * Normalise a token to its document.
  *
  * The HUD hands components a PIXI Token placeable, but the system stores
@@ -196,14 +223,14 @@ export class RollService {
   async #percentileRoll({ actor, token = null, item = null, rollType, key, event = {}, specialTrainingName = null }) {
     const { DGPercentileRoll, processDGRoll } = await this.api();
 
-    const roll = new DGPercentileRoll('1D100', {}, {
+    const roll = markHudOrigin(new DGPercentileRoll('1D100', {}, {
       rollType,
       key,
       actor,
       item,
       token: toTokenDocument(token),
       specialTrainingName
-    });
+    }));
 
     // The system already folds in the weapon's own skillModifier and any Active
     // Effect roll targets — only the Willpower Boost is ours to add (PAR-2).
@@ -343,10 +370,10 @@ export class RollService {
     if (!rollType) return null;
 
     const { createDGRollFromDataset, processDGRoll } = await this.api();
-    const roll = createDGRollFromDataset(
+    const roll = markHudOrigin(createDGRollFromDataset(
       { rolltype: rollType },
       { actor, item, token: toTokenDocument(token) }
-    );
+    ));
 
     await processDGRoll(asPlainRoll(event), roll);
     return this.#settle(roll);

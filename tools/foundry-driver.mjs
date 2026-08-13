@@ -205,10 +205,8 @@ async function smoke() {
     actions.push({ action: label, result: message ? 'rolled' : 'NO CHAT MESSAGE', message: message ?? '' });
   };
 
-  // An attack now declares that it wants one target, so with Argon's
-  // `rangepicker` setting on, clicking a weapon opens its picker and waits.
-  // Holding a target first is the realistic flow — and it is what Argon's picker
-  // detects to complete immediately.
+  // Hold a target first: that is the realistic flow, and what damage automation
+  // resolves against.
   await page.evaluate(() => {
     const self = ui.ARGON._token;
     const other = canvas.tokens.placeables.find((t) => t !== self && t.actor?.system?.health);
@@ -428,16 +426,21 @@ async function verify() {
     }
   }
 
-  // 4 — an attack with a target already held must not stall on the picker.
+  // 4 — attacking rolls directly. Argon's TargetPicker must not engage: its
+  // "right click to cancel" is a document listener, so Foundry opens the Token
+  // HUD on the same click, and its teardown scrambles the active tool.
   if (victim) {
     await page.evaluate((id) => canvas.tokens.get(id)?.setTarget(true, { releaseOthers: true }), victim.id);
     const before = await page.evaluate(() => game.messages.contents.length);
     await page.locator('.dg-weapon-panel .item-button').first().click();
+
     const rolled = await page
       .waitForFunction((n) => game.messages.contents.length > n, before, { timeout: 8000 })
       .then(() => true)
       .catch(() => false);
-    record('attacking with a target already held does not stall on the picker', rolled);
+    const picker = await page.evaluate(() => !!document.querySelector('.ech-target-picker'));
+
+    record('attacking rolls without engaging the target picker', rolled && !picker, picker ? 'picker engaged' : '');
   }
 
   // 5 — right-click surfaces the system's own damage-or-lethality dialog.
@@ -612,6 +615,140 @@ async function verify() {
         await actor.update({ [`system.skills.${key}.proficiency`]: before });
       },
       forced
+    );
+  }
+
+  // 8 — damage rolled *outside* the HUD. `DeltaGreenItem#roll` is what the
+  // system's own chat-card buttons call, and it fires no hook; before the chat
+  // observer existed, a failed Lethality rolled that way printed its tens+ones
+  // damage on the card with no way to apply it.
+  const outside = await page.evaluate(async () => {
+    const MODULE = 'enhancedcombathud-deltagreen';
+    const mode = game.settings.get(MODULE, 'damageAutomation');
+    await game.settings.set(MODULE, 'damageAutomation', 'propose');
+
+    const self = ui.ARGON._token;
+    const victim = canvas.tokens.placeables.find((t) => t !== self && t.actor?.system?.health);
+    if (!victim) return null;
+    victim.setTarget(true, { releaseOthers: true });
+
+    const weapon = [...ui.deltaGreenCombatHud.actor.items].find(
+      (i) => i.type === 'weapon' && Number(i.system?.lethality) > 0
+    );
+    if (!weapon) return null;
+
+    const proposals = () =>
+      game.messages.contents.filter((m) => m.flags?.[MODULE]?.pendingDamage).length;
+
+    // The path the system's card takes.
+    const beforeSheet = proposals();
+    await weapon.roll({ lethal: true });
+    await new Promise((r) => setTimeout(r, 1200));
+    const fromSheet = proposals() - beforeSheet;
+
+    // The HUD's own path, which must still produce exactly one — not two now
+    // that a second observer exists.
+    const { rollService } = await import(`/modules/${MODULE}/scripts/roll-service.mjs`);
+    const beforeHud = proposals();
+    await rollService.rollWeaponDamage({
+      actor: ui.deltaGreenCombatHud.actor,
+      token: self,
+      item: weapon,
+      choice: 'lethality'
+    });
+    await new Promise((r) => setTimeout(r, 1200));
+    const fromHud = proposals() - beforeHud;
+
+    await game.settings.set(MODULE, 'damageAutomation', mode);
+    return { fromSheet, fromHud, weapon: weapon.name };
+  });
+
+  if (!outside) {
+    record('a Lethality rolled outside the HUD can still be applied', false, 'no lethal weapon or no second token');
+  } else {
+    record(
+      'a Lethality rolled outside the HUD can still be applied',
+      outside.fromSheet === 1,
+      `${outside.weapon}: ${outside.fromSheet} proposal(s)`
+    );
+    record(
+      'a roll from the HUD is still proposed exactly once',
+      outside.fromHud === 1,
+      `${outside.fromHud} proposal(s)`
+    );
+  }
+
+  // 9 — the attack card names who it was aimed at, and honours the token's own
+  // display-name setting rather than baking a name in for everyone.
+  const aimedAt = await page.evaluate(() => {
+    const self = ui.ARGON._token;
+    const victim = canvas.tokens.placeables.find((t) => t !== self && t.actor?.system?.health);
+    if (!victim) return null;
+    victim.setTarget(true, { releaseOthers: true });
+    return { name: victim.name, count: game.messages.contents.length };
+  });
+
+  if (!aimedAt) {
+    record('an attack card names its target', false, 'no second token to target');
+  } else {
+    await page.locator('.dg-weapon-panel .item-button').first().click();
+    await page
+      .waitForFunction((n) => game.messages.contents.length > n, aimedAt.count, { timeout: 8000 })
+      .catch(() => null);
+    await page.waitForTimeout(700);
+
+    const named = await page.evaluate(() => {
+      // The attack card, not whatever the damage prompt may have added after it.
+      const message = game.messages.contents
+        .reverse()
+        .find((m) => m.rolls?.[0]?.options?.rollType === 'weapon');
+      const line = document.querySelector(`[data-message-id="${message?.id}"] .dg-hud-attack-targets`);
+
+      return {
+        flagged: (message?.flags?.['enhancedcombathud-deltagreen']?.attackTargets ?? []).length,
+        shown: line?.innerText ?? null
+      };
+    });
+
+    record(
+      'an attack card names its target',
+      named.flagged === 1 && Boolean(named.shown) && named.shown.includes(aimedAt.name),
+      named.shown ?? `flagged=${named.flagged}, nothing rendered`
+    );
+
+    // A hit opens the damage prompt; leave nothing on screen for the next check.
+    await dismiss();
+  }
+
+  // 10 — dropping several targets must leave one control, not one per target.
+  // `targetToken` fires once per token, and Argon's ButtonHud appends its
+  // buttons after the element has been cleared, so overlapping renders stacked.
+  const controls = await page.evaluate(async () => {
+    const self = ui.ARGON._token;
+    const others = canvas.tokens.placeables.filter((t) => t !== self).slice(0, 3);
+    if (others.length < 2) return null;
+
+    others.forEach((t, i) => t.setTarget(true, { releaseOthers: i === 0 }));
+    await new Promise((r) => setTimeout(r, 700));
+    const whileTargeting = document.querySelectorAll('.dg-target-hud .button-hud-button').length;
+
+    [...game.user.targets].forEach((t) => t.setTarget(false, { releaseOthers: false }));
+    await new Promise((r) => setTimeout(r, 700));
+
+    return {
+      targeted: others.length,
+      whileTargeting,
+      afterClearing: document.querySelectorAll('.dg-target-hud .button-hud-button').length
+    };
+  });
+
+  if (!controls) {
+    record('the target readout keeps one control through a re-target', false, 'not enough tokens');
+  } else {
+    record(
+      'the target readout keeps one control through a re-target',
+      controls.whileTargeting === 1 && controls.afterClearing === 1,
+      `${controls.targeted} targeted → ${controls.whileTargeting}, cleared → ${controls.afterClearing}`
     );
   }
 

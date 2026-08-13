@@ -35,7 +35,7 @@ is the enforceable residue of everything here.
 |---|---|
 | [PRODUCT.md](PRODUCT.md) | Who it is for, what "easier combat" means as a falsifiable claim, and the four things this must never become. |
 | [DESIGN.md](DESIGN.md) | The layer model, eight design guidelines, and the reusable framework for deciding what to depend on. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Module inventory, lifecycle, data flow, the four seams, Argon's sharp edges, and known debt. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Module inventory, lifecycle, data flow, the five seams, Argon's sharp edges, and known debt. |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Numbered, traceable requirements with status. What is shipped, on the roadmap, and consciously deferred. |
 | [TESTING.md](TESTING.md) | The four testing tiers, the snapshot-contract pattern, and what to do when a drift test fails. |
 | [RELEASE.md](RELEASE.md) | Versioning, the twelve-step pipeline, and the checklist around it. |

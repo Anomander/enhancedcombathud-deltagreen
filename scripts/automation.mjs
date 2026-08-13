@@ -173,10 +173,18 @@ async function onRollOutcome(outcome) {
 
   const target = currentTarget();
   if (!target) {
-    // Not an error: rolling damage with nothing targeted is ordinary play, and
-    // a notification on every such roll would be noise. AUTO-5's "say so"
-    // applies once automation has engaged, which it has not.
-    Logger.debug('Damage rolled with no single target — automation stood down');
+    if ((globalThis.game?.user?.targets?.size ?? 0) > 1) {
+      // Several targeted is a deliberate act the module cannot resolve, so it
+      // says so (AUTO-5, UX-6). Silence here reads as a broken Apply button:
+      // the player rolled damage at three things and nothing happened.
+      notify('warn', 'DG_HUD.Notifications.SeveralTargets');
+      return;
+    }
+
+    // Nothing targeted is different: rolling damage with no target is ordinary
+    // play, and a notification on every such roll would be noise. AUTO-5's "say
+    // so" applies once automation has engaged, which it has not.
+    Logger.debug('Damage rolled with no target — automation stood down');
     return;
   }
 

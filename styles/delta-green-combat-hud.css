@@ -83,6 +83,20 @@
 }
 
 /*
+ * Who an attack was aimed at, under the system's own roll label. Quiet on
+ * purpose — it is context for the roll above it, not a result of its own.
+ */
+.dg-hud-attack-targets {
+  /* Matches the system's own `.dg-chat-card__roll-label` inset, so the line
+     hangs off the header it belongs to rather than floating in the body. */
+  padding: 3px 10px 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+/*
  * The target readout occupies Argon's ButtonHud slot, beside the portrait.
  * It shows token art in a reticle, a caption, and one control — never an
  * adversary's hit points or condition.

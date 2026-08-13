@@ -7,8 +7,9 @@
  * writes.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { proposeFrom, applyResolution } from '../scripts/automation.mjs';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { proposeFrom, applyResolution, registerAutomation } from '../scripts/automation.mjs';
+import { EVENTS, emit, clearListeners } from '../scripts/events.mjs';
 import { makeAgent, makeNpc, makeWeapon } from './fixtures/dg-actors.mjs';
 
 /** A targeted token, as Foundry hands it over. */
@@ -99,6 +100,35 @@ describe('Lethality', () => {
 
     expect(resolution.lethalKill).toBe(false);
     expect(resolution.applied).toBe(9);
+  });
+});
+
+describe('Standing down', () => {
+  afterEach(() => clearListeners());
+
+  /** Let the async handler inside `registerAutomation` settle. */
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it('explains itself when several targets are held', async () => {
+    // Silence here reads as a broken Apply button: the player deliberately
+    // targeted three things, rolled damage, and nothing happened (AUTO-5, UX-6).
+    globalThis.game.user.targets = new Set([makeTarget(makeNpc()), makeTarget(makeNpc())]);
+    registerAutomation();
+
+    emit(EVENTS.ROLL_OUTCOME, damageOutcome());
+    await settle();
+
+    expect(globalThis.ui.notifications.warn).toHaveBeenCalledWith('DG_HUD.Notifications.SeveralTargets');
+  });
+
+  it('stays quiet when nothing is targeted, because that is ordinary play', async () => {
+    globalThis.game.user.targets = new Set();
+    registerAutomation();
+
+    emit(EVENTS.ROLL_OUTCOME, damageOutcome());
+    await settle();
+
+    expect(globalThis.ui.notifications.warn).not.toHaveBeenCalled();
   });
 });
 

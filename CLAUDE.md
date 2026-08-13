@@ -89,6 +89,11 @@ Four layers; dependencies point down only. Full diagram in
 - `scripts/actor-adapter.mjs` — The only place that reads Delta Green actor data.
 - `scripts/roll-service.mjs` — The only path to the dice. Wraps the system's `processDGRoll`.
 - `scripts/roll-outcome.mjs` — Reads a finished roll. Pure.
+- `scripts/roll-observer.mjs` — Republishes damage and Lethality rolls the module
+  did not issue. The system fires no roll hook, so its chat message is the only place
+  a roll from the sheet or from the system's own card buttons becomes observable.
+- `scripts/attack-targets.mjs` — Records who an attack was aimed at, and names them
+  per viewer.
 - `scripts/resolution.mjs` — Damage after armour. Pure. The one place a rule is encoded.
 - `scripts/automation.mjs` — Resolves damage against the target, offers it in chat.
 - `scripts/damage-prompt.mjs` — Offers the damage roll the moment an attack lands.

@@ -40,9 +40,11 @@ go* table are in [DESIGN.md §1](DESIGN.md). In short:
 | `actor-adapter.mjs` | core | **The only reader of Delta Green actor data.** | anything |
 | `roll-service.mjs` | core | **The only path to the dice.** Wraps `processDGRoll`. Owns turn gating and Willpower Boost arming. | anything |
 | `roll-outcome.mjs` | core | Reads a finished roll: evaluated or not, success, Lethality. Pure. | anything |
+| `roll-observer.mjs` | core | Republishes damage and Lethality rolls the module did not issue. | root |
 | `resolution.mjs` | core | Damage after armour and armour piercing. Pure. | anything |
 | `automation.mjs` | core | Resolves damage against the target and offers it in chat. | root |
 | `damage-prompt.mjs` | core | Offers the damage roll the moment an attack lands. | root |
+| `attack-targets.mjs` | core | Records who an attack was aimed at; names them per viewer. | root |
 | `events.mjs` | core | In-module event bus for roll outcomes. | anything |
 | `targeting.mjs` | core | What may be said about the current target. Pure. | anything |
 | `roll-handler.mjs` | core | Pure math for the Willpower Boost house rule. No I/O. | anything |
@@ -124,7 +126,7 @@ parameter rather than as a policy anyone has to remember.
 
 ---
 
-## The four seams
+## The five seams
 
 ### 1. The Argon seam — `argonInit` + `CONFIG.ARGON`
 Argon is reached through exactly two things: the `argonInit` hook and the `CONFIG.ARGON`
@@ -159,6 +161,34 @@ Settings are registered in one place and read through typed accessors (`getWpBoo
 never via scattered `game.settings.get` calls. Every registered setting has a reader; a setting
 with no reader is deleted, not left registered (UX-2).
 
+### 5. The chat seam — `roll-observer.mjs`
+The module cannot see a roll it did not make. The Delta Green system fires **no hook anywhere in
+its roll pipeline**, and `DeltaGreenItem#roll` — what the *Roll Damage* / *Roll Lethality*
+buttons on the system's own attack card call — goes straight to `actor.sheet.processRoll`. A
+player who declined the HUD's prompt and used those buttons got no offer to apply the result,
+which mattered most for a **failed Lethality**: it still deals its tens+ones damage, and that
+damage had nowhere to go.
+
+The one place every Delta Green roll surfaces is its chat message, and the system registers its
+roll subclasses in `CONFIG.Dice.rolls`, so a roll read back off a message is a real
+`DGLethalityRoll` — `target`, `nonLethalDamage` and `isSuccess` all answer, before and after a
+reload. `roll-observer.mjs` watches `createChatMessage` and republishes damage and Lethality
+rolls onto the same bus `roll-service.mjs` uses, so automation has one input regardless of where
+the roll came from.
+
+Two guards keep it honest:
+
+- **Only the author's client acts.** `createChatMessage` fires everywhere; resolution belongs to
+  the player who rolled, and theirs is the target that counts.
+- **Rolls the module issued are skipped**, via `roll.options.dgHudOrigin` (`roll-service.mjs`).
+  `roll.options` is serialised into the message, so the mark survives to where it is read. It
+  changes no dialog, no modifier, no evaluation and nothing the card renders — PAR-1 holds — and
+  **nothing may ever branch a roll on it.**
+
+Attack rolls are deliberately *not* observed. The system's card already offers its own damage
+buttons, so treating a sheet attack as a HUD one would put a second prompt in front of a player
+who never asked the HUD for anything.
+
 ---
 
 ## State ownership
@@ -179,7 +209,7 @@ Knowing who owns what prevents most re-render bugs.
 
 ## Argon's sharp edges
 
-Six constraints learned the expensive way. They are recorded here, asserted by
+Constraints learned the expensive way. They are recorded here, asserted by
 `tests/argon-contract.test.mjs`, and the important ones are invariants — so they cost their
 discovery price only once.
 
@@ -191,9 +221,12 @@ discovery price only once.
 | `MovementHud.movementUsed` is a getter/setter pair | Overriding the getter alone shadows the setter → *"Cannot set property … which has only a getter"* | Override the *method* that assigns, not the accessor. Contract test asserts no getter-only overrides of paired accessors. |
 | A button's `icon` is applied as a CSS `background-image` | Font Awesome classes render as nothing | Use image paths. Contract test asserts this. |
 | …except on `ButtonHud`, where `icon` is Font Awesome **classes** | An image path renders as nothing | Opposite convention in the same framework. |
-| The target picker is gated on `useTargetPicker && targets > 0`, and `targets` defaults to `0` | Overriding `useTargetPicker` alone does nothing at all | Override `targets`; leave `useTargetPicker` to Argon's own setting (ARCH-1). |
+| The target picker is gated on `useTargetPicker && targets > 0`, and `targets` defaults to `0` | Overriding `useTargetPicker` alone does nothing at all | Leave both alone. Declaring `targets` switches the picker on, and it is worse than the gap it fills — see below. |
+| `TargetPicker` cancels on a document-level `mouseup`, and tears down via `document.querySelector('.control.tool').click()` | Foundry opens the Token HUD on the same right-click the tutorial says will cancel; the active tool is left scrambled | Do not request the picker. The target reticle serves the same purpose. |
 | Argon re-renders on actor, item, token and combat changes — but never on targeting | A target readout goes stale | Hook `targetToken` once, at registration; not in a component constructor, which Argon rebuilds per render. |
-| `ButtonHud.render` writes layout inline (`display:grid`, rows sized to the button count), and Argon's own rules win `justify-content` and `.button-hud-button { flex }` against a module class | A stylesheet cannot lay this component out | Set layout inline in `render()`; keep only appearance in CSS. |
+| `ButtonHud.render` writes layout inline (`display:grid`, rows sized to the button count), and `.movement-hud:has(.button-hud-button)` sets `justify-content: unset` at higher specificity than a module class | A stylesheet cannot lay this component out | Set layout inline in `render()`; keep only appearance in CSS. |
+| `ButtonHud.render` **appends** its buttons, while `_renderInner` is the only thing that clears the element | Two renders in flight interleave — clear, clear, append, append — and controls pile up. `targetToken` fires once per token, so dropping three targets left three stacked *Select target* buttons | Serialise and coalesce renders in the component; at most one waits behind the one in flight. |
+| `.movement-hud` is pinned at a hardcoded `left: 375px`, but `.portrait-hud` is only `min-width: 375px` | Any system whose portrait grows past 375px has its side HUD drawn over the portrait — ours measured 463px, an 88px overlap | Measure the portrait and place beside its real right edge, kept current with a `ResizeObserver`. |
 | `updateItem` re-renders matching buttons but never re-runs a panel's `_getButtons()` | A newly equipped weapon does not appear until the HUD rebinds — which is why switching actors appeared to "fix" it | Explicit `ui.ARGON.refresh()` after set changes |
 
 `MovementHud` deserves its own note: Argon defaults `MOVEMENT` to a base class whose

@@ -32,19 +32,27 @@ export function createWeaponPanel(ARGON) {
       return this.item?.system?.ammo || null;
     }
 
-    /**
-     * Ask Argon to collect a target before the attack rolls.
+    /*
+     * `targets` is deliberately left at Argon's default of 0, which means its
+     * TargetPicker never engages — and `useTargetPicker` is deliberately not
+     * overridden either.
      *
-     * `useTargetPicker` is deliberately *not* overridden. Argon gates the picker
-     * on `useTargetPicker && targets > 0`, and its own `useTargetPicker` reads
-     * the player's `rangepicker` setting — so forcing it true here both did
-     * nothing (`targets` defaulted to 0) and overrode a HUD preference that
-     * belongs to Argon (ARCH-1). Declaring how many targets an attack wants is
-     * the system module's job; whether to prompt for them is the player's.
+     * Declaring `targets = 1` does switch the picker on, and at first that looks
+     * like the fix for an override that did nothing. In use it is worse than the
+     * gap it fills. Its own tutorial promises "right click to cancel", but the
+     * cancel is a document-level `mouseup` listener, so Foundry still handles the
+     * same click and opens the Token HUD over the canvas. Its teardown then calls
+     * `document.querySelector('.control.tool').click()` — the *first* tool in the
+     * DOM, whatever that happens to be — before selecting the select tool,
+     * leaving the active tool scrambled.
+     *
+     * Neither is fixable from here without overriding Argon's flow and Foundry's
+     * canvas behaviour, which ARCH-1 and ARCH-4 both forbid. The need it served —
+     * knowing whether a target is set, and setting one — is met by the target
+     * reticle instead, which states the target continuously and offers its own
+     * Re-target control. Raise the picker's behaviour upstream rather than
+     * re-enabling this.
      */
-    get targets() {
-      return 1;
-    }
 
     /*
      * `ranges` is deliberately not overridden either. Argon feeds it to

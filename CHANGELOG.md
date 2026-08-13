@@ -46,11 +46,33 @@ rather than left to advertise features that no longer exist.
   It offers exactly what that card would — the system's own damage-or-lethality dialog when a
   weapon has both, a plain confirmation when it has only one, and nothing at all when it has
   neither — and rolls through the same path the character sheet uses.
+- **Attack cards name their target.** A weapon attack records who the roller had targeted and
+  states it under the roll — *Against Cultist* — so the table does not have to ask after every
+  shot. Only token uuids are stored; each viewer's card resolves the names itself, so a token
+  whose name the Handler has hidden shows as an unidentified target rather than leaking. The
+  line is stamped on the message rather than on the roll, so an attack made from the character
+  sheet carries it exactly as one from the HUD does.
 - **Public API** on `ui.deltaGreenCombatHud`.
 - **Diagnostics** — `ui.deltaGreenCombatHud.diagnose()` reports what the HUD sees and built.
 
 ### Fixed
 
+- **A failed Lethality rolled outside the HUD could not be applied.** A failed Lethality roll
+  still deals its tens+ones damage (Agent's Handbook p. 57), and the HUD would offer to apply
+  it — but only for rolls the HUD itself issued. A player who declined the damage prompt and
+  used the *Roll Lethality* button on the system's own attack card got nothing: that button
+  calls `DeltaGreenItem#roll`, which goes straight to `actor.sheet.processRoll`, and the system
+  fires no hook anywhere in its roll pipeline. Damage and Lethality rolls are now observed
+  through their chat message, so wherever they are rolled from — the HUD, the character sheet,
+  or the card's own buttons — the result can be applied. Rolls the HUD issued are marked so
+  they are still offered exactly once.
+- **Rolling damage with several targets held did nothing, silently.** Resolution against more
+  than one target is genuinely ambiguous, so automation stands down — but it now says so
+  instead of looking like a broken Apply button.
+- **Clearing several targets left a stack of *Select target* buttons.** Foundry fires
+  `targetToken` once per token, and Argon's `ButtonHud` appends its controls *after* the only
+  step that clears the element, so overlapping renders accumulated one button per target.
+  Renders are now serialised and coalesced.
 - **Lethality never rolled from the HUD.** The damage path called the system's
   `item.roll({ critical, lethal })` with a positional boolean, so both flags were discarded:
   every right-click rolled ordinary damage, and a critical never doubled. Right-click now
@@ -61,10 +83,18 @@ rather than left to advertise features that no longer exist.
   roll, or a page reload spent the Willpower for nothing. Willpower is now taken *after* the
   dice are actually rolled, and the boost is a toggle that can be cancelled at no cost.
 - **Removed a self-referential symlink** that had been committed at the repository root.
-- **Argon's target picker never ran.** The weapon button forced `useTargetPicker` on, but Argon
-  gates the picker on `useTargetPicker && targets > 0` and `targets` defaulted to `0`, so the
-  override did nothing. Attacks now declare that they want one target, and whether to prompt is
-  left to the player's own Argon setting.
+- **Removed a weapon-button override that did nothing.** `useTargetPicker` was forced on, but
+  Argon gates its picker on `useTargetPicker && targets > 0` and `targets` defaults to `0`, so
+  the override never had any effect — while also overriding a HUD preference that belongs to
+  Argon. Argon's TargetPicker is deliberately *not* requested: its tutorial promises "right
+  click to cancel", but that is a document-level listener, so Foundry opens the Token HUD on
+  the same click, and its teardown scrambles the active scene-control tool. The target reticle
+  covers the same need without either problem.
+- **The target block overlapped the portrait.** Argon pins its side HUD at a hardcoded
+  `left: 375px` while declaring the portrait `min-width: 375px` — growable. Delta Green vitals
+  render wider than that (463px measured), so the block was drawn 88px over the portrait. It
+  now measures the portrait and sits against its actual edge, following it as the actor,
+  scale or window changes.
 - **Weapon range could produce a broken range ring.** The button returned the schema's
   free-text range (`"10M"`) where Argon does arithmetic, giving `"10M" + offset`. It no longer
   claims a numeric range it does not have.
