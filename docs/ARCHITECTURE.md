@@ -192,6 +192,7 @@ discovery price only once.
 | …except on `ButtonHud`, where `icon` is Font Awesome **classes** | An image path renders as nothing | Opposite convention in the same framework. |
 | The target picker is gated on `useTargetPicker && targets > 0`, and `targets` defaults to `0` | Overriding `useTargetPicker` alone does nothing at all | Override `targets`; leave `useTargetPicker` to Argon's own setting (ARCH-1). |
 | Argon re-renders on actor, item, token and combat changes — but never on targeting | A target readout goes stale | Hook `targetToken` once, at registration; not in a component constructor, which Argon rebuilds per render. |
+| `ButtonHud.render` writes layout inline (`display:grid`, rows sized to the button count), and Argon's own rules win `justify-content` and `.button-hud-button { flex }` against a module class | A stylesheet cannot lay this component out | Set layout inline in `render()`; keep only appearance in CSS. |
 | `updateItem` re-renders matching buttons but never re-runs a panel's `_getButtons()` | A newly equipped weapon does not appear until the HUD rebinds — which is why switching actors appeared to "fix" it | Explicit `ui.ARGON.refresh()` after set changes |
 
 `MovementHud` deserves its own note: Argon defaults `MOVEMENT` to a base class whose

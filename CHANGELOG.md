@@ -34,11 +34,13 @@ rather than left to advertise features that no longer exist.
 - **Roll outcomes are observable.** Every evaluated roll is published as an
   `enhancedcombathud-deltagreen.rollOutcome` hook, so effects modules can attach without
   patching anything.
-- **Target readout** in Argon's previously unused `ButtonHud` slot, beside the portrait. It
-  distinguishes no target, one target, and several — the last being exactly when damage
-  automation stands down, so the reason is now visible rather than silent. Names honour each
-  token's display-name mode and are withheld when the Handler has hidden them; hit points and
-  condition are never shown.
+- **Target reticle** in Argon's previously unused `ButtonHud` slot, beside the portrait. It
+  frames the target's token art in a crosshair, names it, and offers a *Re-target* control.
+  Three states are distinguished — nothing targeted (amber, dashed), one target, and several
+  (red) — the first and last being exactly when damage automation cannot act, so the reason is
+  visible rather than silent. Names honour each token's display-name mode and are withheld
+  when the Handler has hidden them; the *actor's* portrait is never used, only token art that
+  is already on the canvas, and hit points and condition are never shown.
 - **Public API** on `ui.deltaGreenCombatHud`.
 - **Diagnostics** — `ui.deltaGreenCombatHud.diagnose()` reports what the HUD sees and built.
 

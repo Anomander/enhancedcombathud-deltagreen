@@ -58,10 +58,31 @@ export function canSeeTokenName(token, { isGM = false } = {}) {
 }
 
 /**
+ * The image to show for a target: its **token art**, never the actor's portrait.
+ *
+ * The distinction matters. A token you have targeted is by definition already
+ * drawn on the canvas in front of the player, so repeating it discloses nothing.
+ * An actor's portrait is a different image that the player may never have seen —
+ * in this very world, a token reading `Token.C.webp` belongs to an actor whose
+ * portrait is `Avatar.C.webp`. Showing the portrait could hand out a face the
+ * Handler had not revealed.
+ *
+ * This is why the image is not gated on name visibility: the two disclose
+ * different things, and only one of them is already on screen.
+ *
+ * @param {object|null} token
+ * @returns {string|null} An image path, or null if the token has none.
+ */
+export function targetImage(token) {
+  return token?.document?.texture?.src ?? null;
+}
+
+/**
  * @typedef {object} TargetState
  * @property {'none'|'one'|'many'} kind
  * @property {number} count
  * @property {string|null} name - The target's name, or null when it must not be shown.
+ * @property {string|null} image - Token art, or null when there is nothing to show.
  */
 
 /**
@@ -78,8 +99,8 @@ export function canSeeTokenName(token, { isGM = false } = {}) {
 export function describeTargets(tokens, { isGM = false } = {}) {
   const targets = Array.isArray(tokens) ? tokens.filter(Boolean) : [];
 
-  if (targets.length === 0) return { kind: 'none', count: 0, name: null };
-  if (targets.length > 1) return { kind: 'many', count: targets.length, name: null };
+  if (targets.length === 0) return { kind: 'none', count: 0, name: null, image: null };
+  if (targets.length > 1) return { kind: 'many', count: targets.length, name: null, image: null };
 
   const [token] = targets;
   const visible = canSeeTokenName(token, { isGM });
@@ -87,6 +108,7 @@ export function describeTargets(tokens, { isGM = false } = {}) {
   return {
     kind: 'one',
     count: 1,
-    name: visible ? token.name ?? token.document?.name ?? null : null
+    name: visible ? token.name ?? token.document?.name ?? null : null,
+    image: targetImage(token)
   };
 }

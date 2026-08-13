@@ -34,6 +34,8 @@
   "DG_HUD.Target.None": "Sin objetivo",
   "DG_HUD.Target.Hidden": "Objetivo",
   "DG_HUD.Target.Many": "{count} objetivos",
+  "DG_HUD.Target.Retarget": "Cambiar objetivo",
+  "DG_HUD.Target.Select": "Elegir objetivo",
 
   "DG_HUD.Apply.HeadingProposed": "Daño por aplicar",
   "DG_HUD.Apply.HeadingApplied": "Daño aplicado",

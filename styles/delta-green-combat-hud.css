@@ -83,16 +83,111 @@
 }
 
 /*
- * The target readout occupies Argon's ButtonHud slot, beside the portrait. It
- * reports a name and nothing else — never an adversary's condition.
+ * The target readout occupies Argon's ButtonHud slot, beside the portrait.
+ * It shows token art in a reticle, a caption, and one control — never an
+ * adversary's hit points or condition.
  */
-.dg-target-hud .button-hud-button {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+/*
+ * Layout (display, direction, justification, and the control's flex) is set
+ * inline by the component — Argon writes this element's layout inline too, and
+ * a stylesheet cannot beat that. Only spacing and appearance live here.
+ */
+.dg-target-hud {
+  gap: 0.35em;
+  /* Top padding keeps the reticle's ticks from clipping against the edge. */
+  padding: 0.6em 0.25em 0.35em;
 }
 
-.dg-target-hud .button-hud-button span {
+/* The reticle: a ring with four ticks, so the intent reads as "aimed at". */
+.dg-target-reticle {
+  position: relative;
+  width: 4em;
+  height: 4em;
+  display: grid;
+  place-items: center;
+  --dg-reticle: var(--ech-portrait-base-border, #757f89);
+}
+
+.dg-target-reticle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--dg-reticle);
+}
+
+.dg-target-reticle::after {
+  content: '';
+  position: absolute;
+  inset: -0.3em;
+  background:
+    linear-gradient(var(--dg-reticle), var(--dg-reticle)) 50% 0 / 2px 0.55em no-repeat,
+    linear-gradient(var(--dg-reticle), var(--dg-reticle)) 50% 100% / 2px 0.55em no-repeat,
+    linear-gradient(var(--dg-reticle), var(--dg-reticle)) 0 50% / 0.55em 2px no-repeat,
+    linear-gradient(var(--dg-reticle), var(--dg-reticle)) 100% 50% / 0.55em 2px no-repeat;
+}
+
+.dg-target-reticle[data-state='one'] {
+  --dg-reticle: var(--ech-buttons-base-background, #5096c3);
+}
+
+.dg-target-portrait {
+  width: 3.4em;
+  height: 3.4em;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Nothing targeted: broken ring, warning colour, and an empty centre. Damage
+   automation cannot act in this state, so it should not be quiet about it. */
+.dg-target-reticle[data-state='none'] {
+  --dg-reticle: var(--dg-hud-warning, #c8a02e);
+}
+
+.dg-target-reticle[data-state='none']::before {
+  border-style: dashed;
+}
+
+.dg-target-reticle[data-state='none'] i {
+  color: var(--dg-hud-warning, #c8a02e);
+  opacity: 0.75;
+}
+
+/* Several targeted is equally actionable: resolution is ambiguous until it is
+   resolved down to one. */
+.dg-target-reticle[data-state='many'] {
+  --dg-reticle: var(--dg-hud-critical, #cc4436);
+}
+
+.dg-target-count {
+  font-size: 1.3em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--dg-hud-critical, #cc4436);
+}
+
+.dg-target-name {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+}
+
+.dg-target-name[data-state='none'] {
+  color: var(--dg-hud-warning, #c8a02e);
+}
+
+.dg-target-name[data-state='many'] {
+  color: var(--dg-hud-critical, #cc4436);
+}
+
+/* Wrapping and alignment for the control's label are set inline alongside the
+   rest of the layout; only its type scale belongs here. */
+.dg-target-hud .button-hud-button span {
+  font-size: 0.75em;
+  letter-spacing: 0.02em;
 }

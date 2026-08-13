@@ -359,24 +359,55 @@ async function verify() {
   record('Willpower is charged after the roll', wp.afterRoll === wp.before - 1, `${wp.afterArming} → ${wp.afterRoll}`);
 
   // 3 — the target readout reports each state, and never leaks a hidden name.
-  const readout = () => page.locator('.dg-target-hud .button-hud-button').first().innerText();
+  const readout = () => page.locator('.dg-target-hud .dg-target-name').first().innerText();
+
+  /** What the reticle is actually showing right now. */
+  const reticle = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('.dg-target-hud .dg-target-reticle');
+      const img = el?.querySelector('img.dg-target-portrait');
+      const button = document.querySelector('.dg-target-hud .button-hud-button span');
+      return {
+        state: el?.dataset.state ?? null,
+        portrait: img?.getAttribute('src') ?? null,
+        rendered: (el?.offsetHeight ?? 0) > 0,
+        button: button?.innerText ?? null
+      };
+    });
 
   await page.evaluate(() => [...game.user.targets].forEach((t) => t.setTarget(false, { releaseOthers: false })));
   await page.waitForTimeout(500);
-  record('target readout reports nothing targeted', (await readout()).trim().length > 0, (await readout()).trim());
+  const empty = await reticle();
+  record(
+    'nothing targeted is stated, not left blank',
+    empty.state === 'none' && empty.rendered && empty.portrait === null && Boolean(empty.button),
+    `${(await readout()).trim()} / ${empty.button}`
+  );
 
   const victim = await page.evaluate(() => {
     const self = ui.ARGON._token;
     const other = canvas.tokens.placeables.find((t) => t !== self && t.actor?.system?.health);
     if (!other) return null;
     other.setTarget(true, { releaseOthers: true });
-    return { name: other.name, id: other.id };
+    return { name: other.name, id: other.id, art: other.document.texture.src, portrait: other.actor.img };
   });
 
   if (victim) {
     await page.waitForTimeout(500);
     const shown = (await readout()).trim();
+    const framed = await reticle();
+
     record('target readout follows targeting without a rebind', shown.includes(victim.name), shown);
+    record(
+      'the target is shown as its token art, in a reticle',
+      framed.state === 'one' && framed.portrait === victim.art && framed.rendered,
+      framed.portrait ?? 'no portrait'
+    );
+    record(
+      'the re-target control is offered',
+      Boolean(framed.button),
+      framed.button ?? 'missing'
+    );
 
     // Several targets is its own state: this is exactly when automation stands
     // down, and the player is owed the reason.

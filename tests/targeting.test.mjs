@@ -7,11 +7,21 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { canSeeTokenName, describeTargets, TOKEN_DISPLAY_MODES as MODES } from '../scripts/targeting.mjs';
+import { canSeeTokenName, describeTargets, targetImage, TOKEN_DISPLAY_MODES as MODES } from '../scripts/targeting.mjs';
 
 /** A targeted token, shaped as Foundry hands it over. */
-function token({ name = 'Cultist', displayName = MODES.NONE, isOwner = false } = {}) {
-  return { name, document: { displayName, name }, actor: { isOwner } };
+function token({
+  name = 'Cultist',
+  displayName = MODES.NONE,
+  isOwner = false,
+  tokenArt = 'tokens/cultist.webp',
+  actorPortrait = 'portraits/cultist-face.webp'
+} = {}) {
+  return {
+    name,
+    document: { displayName, name, texture: { src: tokenArt } },
+    actor: { isOwner, img: actorPortrait }
+  };
 }
 
 describe('Whose name a player may see', () => {
@@ -59,14 +69,46 @@ describe('Whose name a player may see', () => {
   });
 });
 
+describe('Which image represents a target', () => {
+  // The token is already drawn on the canvas in front of the player — repeating
+  // it discloses nothing. An actor's portrait is a different image the player
+  // may never have seen, and showing it would hand out a face the Handler had
+  // not revealed.
+  it('uses the token art, never the actor portrait', () => {
+    const image = targetImage(token({ tokenArt: 'tokens/masked.webp', actorPortrait: 'portraits/face.webp' }));
+
+    expect(image).toBe('tokens/masked.webp');
+    expect(image).not.toBe('portraits/face.webp');
+  });
+
+  it('reports no image rather than falling back to the portrait', () => {
+    const bare = { name: 'Thing', document: { displayName: MODES.ALWAYS }, actor: { img: 'portraits/face.webp' } };
+    expect(targetImage(bare)).toBeNull();
+  });
+
+  it('handles no token', () => {
+    expect(targetImage(null)).toBeNull();
+  });
+
+  // Withholding a name and withholding a face are different decisions: the face
+  // is on the canvas either way.
+  it('still shows token art when the name is withheld', () => {
+    const state = describeTargets([token({ displayName: MODES.NONE, tokenArt: 'tokens/masked.webp' })]);
+
+    expect(state.name).toBeNull();
+    expect(state.image).toBe('tokens/masked.webp');
+  });
+});
+
 describe('Describing the targeting state', () => {
   it('reports nothing targeted', () => {
-    expect(describeTargets([])).toEqual({ kind: 'none', count: 0, name: null });
+    expect(describeTargets([])).toEqual({ kind: 'none', count: 0, name: null, image: null });
   });
 
   it('reports a single named target', () => {
     const state = describeTargets([token({ name: 'Cultist', displayName: MODES.ALWAYS })]);
-    expect(state).toEqual({ kind: 'one', count: 1, name: 'Cultist' });
+    expect(state).toMatchObject({ kind: 'one', count: 1, name: 'Cultist' });
+    expect(state.image).toBe('tokens/cultist.webp');
   });
 
   it('reports a single target whose name is withheld, without inventing one', () => {
@@ -80,7 +122,7 @@ describe('Describing the targeting state', () => {
   // is exactly when damage automation stands down.
   it('reports several targets as its own state', () => {
     const state = describeTargets([token(), token({ name: 'Other' })]);
-    expect(state).toEqual({ kind: 'many', count: 2, name: null });
+    expect(state).toEqual({ kind: 'many', count: 2, name: null, image: null });
   });
 
   it('ignores holes in the target list', () => {

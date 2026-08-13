@@ -163,14 +163,55 @@ describe('Structural classes', () => {
   });
 });
 
+/**
+ * Argon reads `icon` two incompatible ways.
+ *
+ * On `ItemButton` and `ActionButton` it becomes a CSS `background-image`, so a
+ * Font Awesome class renders as nothing. On `ButtonHud` it becomes
+ * `i.classList.add(...icon.split(" "))`, so an image path renders as nothing.
+ * Same framework, opposite conventions — so the rule is per component base, not
+ * global.
+ */
+const FONT_AWESOME =
+  /['"`]((?:fa-(?:solid|regular|light|thin|duotone|brands)|fas|far|fal|fat|fad|fab|fa)\s+fa-[\w-]+)['"`]/g;
+
+/** Files defining a component that Argon renders as an `<i>`. */
+const buttonHudFiles = new Set(
+  components.filter((component) => component.base === 'ButtonHud').map((component) => component.file)
+);
+
 describe('Button icons', () => {
-  it('uses image paths, not Font Awesome classes', () => {
-    // ActionButton and ButtonPanelButton assign `icon` to a CSS background-image.
+  it('uses image paths where Argon renders a background-image', () => {
     for (const { file, source } of sources) {
-      const fontAwesome = [...source.matchAll(/['"`](fa[srlbd]?[\s-]fa-[\w-]+)['"`]/g)].map((m) => m[1]);
+      if (buttonHudFiles.has(file)) continue;
+
+      const fontAwesome = [...source.matchAll(FONT_AWESOME)].map((match) => match[1]);
       expect(fontAwesome, `${file} uses Font Awesome where an image path is required`).toEqual([]);
     }
   });
+
+  it('uses Font Awesome classes where Argon renders an <i>', () => {
+    for (const file of buttonHudFiles) {
+      const { source } = sources.find((entry) => entry.file === file);
+      const fontAwesome = [...source.matchAll(FONT_AWESOME)];
+
+      expect(
+        fontAwesome.length,
+        `${file} extends ButtonHud, which needs Font Awesome classes, not image paths`
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  // The original pattern required `fa-` immediately after the prefix, so it
+  // matched the legacy `fas fa-dice` but not the modern `fa-solid fa-dice` — a
+  // real mistake in an ActionButton would have passed silently. These are the
+  // forms that must stay recognisable.
+  it.each(['fa-solid fa-dice', 'fa-duotone fa-swords', 'fas fa-dice', 'fa fa-dice'])(
+    'recognises %s as Font Awesome',
+    (icon) => {
+      expect([...`'${icon}'`.matchAll(FONT_AWESOME)]).toHaveLength(1);
+    }
+  );
 });
 
 const argonPath = resolveArgonPath();

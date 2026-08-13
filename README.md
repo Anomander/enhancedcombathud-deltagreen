@@ -26,10 +26,11 @@ and Motivations, all rolled through the Delta Green system's own dice pipeline.
 - **Damage automation** — after a damage or Lethality roll against a target, the result is
   resolved through armour and armour piercing and offered in chat with an *Apply* button.
   The write runs as whoever clicks it, so a Handler can apply a player's roll.
-- **Targeting** — a readout beside the portrait shows who you are pointing at, and says so
-  when nothing is targeted or several things are. It reports names only, honouring each
-  token's display-name setting; an adversary's condition is never shown. Attacks ask Argon
-  for a target first, if you have its target picker switched on.
+- **Targeting** — a reticle beside the portrait frames your target's token art, names it, and
+  offers a *Re-target* control. With nothing targeted it goes amber and says so, because that
+  is exactly when damage automation cannot act. Names honour each token's display-name
+  setting, and an adversary's hit points or condition are never shown. Attacks ask Argon for a
+  target first, if you have its target picker switched on.
 - **Reactions** — Dodge and Fight Back, shown only when the actor has the skill.
 - **Skills** — every skill the system defines, grouped into trained and untrained, including
   typed skills and Special Training.
