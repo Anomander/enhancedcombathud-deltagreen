@@ -225,6 +225,34 @@ export function extractWeapons(actor) {
 }
 
 /**
+ * Which follow-up rolls a weapon actually offers.
+ *
+ * Mirrors the system's own `hasWeaponDamage` and `hasWeaponLethality` helpers
+ * (`utils/register-helpers.js`) exactly — including their treatment of `"0"` and
+ * a blank formula as *no damage*. That precision is the point: the sheet's
+ * weapon row renders one of three controls off these same predicates
+ * (`templates/actor/partials/weapons-section-partial.html`), so anything that
+ * offers a roll they would have withheld is a dead control (UX-1) and a parity
+ * break (PAR-1).
+ *
+ * Lives here because it reads item data, and nothing outside this file does
+ * (SYS-1). Read by `roll-service.mjs`, to decide whether there is a choice to
+ * put to the player, and by `damage-prompt.mjs`, to decide what to offer.
+ *
+ * @param {object|null} item - A weapon item.
+ * @returns {{damage: boolean, lethality: boolean}}
+ */
+export function weaponDamageOptions(item) {
+  const damage = String(item?.system?.damage ?? '').trim();
+  const lethality = Number(item?.system?.lethality);
+
+  return {
+    damage: damage !== '' && damage !== '0',
+    lethality: Number.isFinite(lethality) && lethality > 0
+  };
+}
+
+/**
  * Is this actor eligible for the HUD?
  * @param {object|null} actor
  * @returns {boolean}

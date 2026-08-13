@@ -57,6 +57,14 @@ rather than left to advertise features that no longer exist.
 
 ### Fixed
 
+- **A weapon with only Lethality still asked "damage or Lethality?"** Right-click opened the
+  system's choice dialog for every weapon, so a Grenade — Lethality 15, no damage formula —
+  was asked a question the character sheet never asks, and offered a *Roll Damage* button that
+  rolls an empty formula. The sheet's weapon row renders the combined control only when the
+  weapon carries both, and a direct one otherwise (`hasWeaponDamageAndLethality`); the HUD now
+  reads the same two predicates. A weapon carrying both still asks, a weapon carrying one rolls
+  it straight away, and a weapon carrying neither declines out loud instead of opening a dialog
+  whose every button rolls nothing (PAR-1, PAR-3, UX-1).
 - **A failed Lethality rolled outside the HUD could not be applied.** A failed Lethality roll
   still deals its tens+ones damage (Agent's Handbook p. 57), and the HUD would offer to apply
   it — but only for rolls the HUD itself issued. A player who declined the damage prompt and

@@ -9,7 +9,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { extractVitals, extractSkills, extractWeapons, getActorItems } from '../scripts/actor-adapter.mjs';
+import {
+  extractVitals,
+  extractSkills,
+  extractWeapons,
+  getActorItems,
+  weaponDamageOptions
+} from '../scripts/actor-adapter.mjs';
 import { makeAgent, makeNpc, makeUnnatural, makeVehicle, makeWeapon, makeArmor, makeGear, SCHEMA } from './fixtures/dg-actors.mjs';
 
 describe('Vitals — Agent', () => {
@@ -183,5 +189,49 @@ describe('getActorItems', () => {
 
   it('returns an empty array for a null actor', () => {
     expect(getActorItems(null)).toEqual([]);
+  });
+});
+
+/*
+ * Which follow-up rolls a weapon offers. Mirrors the system's own
+ * `hasWeaponDamage` / `hasWeaponLethality` helpers, which the sheet's weapon row
+ * uses to pick which roll control to render — so these predicates decide both
+ * what the damage prompt offers and whether `roll-service` has a choice to put
+ * to the player at all.
+ */
+describe('What a weapon can follow up with', () => {
+  it('offers damage when the weapon has a damage formula', () => {
+    expect(weaponDamageOptions(makeWeapon({ damage: '1D10', lethality: 0 }))).toEqual({
+      damage: true,
+      lethality: false
+    });
+  });
+
+  it('offers lethality when the weapon has a rating', () => {
+    expect(weaponDamageOptions(makeWeapon({ damage: '', lethality: 20 }))).toEqual({
+      damage: false,
+      lethality: true
+    });
+  });
+
+  it('offers both when the weapon carries both', () => {
+    expect(weaponDamageOptions(makeWeapon({ damage: '2D10', lethality: 20 }))).toEqual({
+      damage: true,
+      lethality: true
+    });
+  });
+
+  // Mirrors the system's own hasWeaponDamage helper, which treats "0" as absent
+  // — offering a roll the chat card would have withheld is a dead control.
+  it.each(['', '   ', '0'])('treats a damage formula of %p as no damage', (damage) => {
+    expect(weaponDamageOptions(makeWeapon({ damage, lethality: 0 })).damage).toBe(false);
+  });
+
+  it.each([0, -5, Number.NaN, null, undefined])('treats a lethality of %p as none', (lethality) => {
+    expect(weaponDamageOptions(makeWeapon({ damage: '', lethality })).lethality).toBe(false);
+  });
+
+  it('handles no item', () => {
+    expect(weaponDamageOptions(null)).toEqual({ damage: false, lethality: false });
   });
 });

@@ -91,7 +91,11 @@ export function createWeaponPanel(ARGON) {
       });
     }
 
-    /** Mirrors the sheet's `damage-or-lethality` control: the system asks which. */
+    /**
+     * Mirrors the sheet's weapon-row roll control. Which of the two it rolls —
+     * and whether that is a question for the player at all — is the service's
+     * call, decided off the same predicates the sheet renders from.
+     */
     async _onRightClick(event) {
       event?.preventDefault?.();
       await rollService.rollWeaponDamage({

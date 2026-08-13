@@ -75,6 +75,7 @@
   "DG_HUD.Notifications.WpInsufficient": "Puntos de Voluntad insuficientes.",
   "DG_HUD.Notifications.WpUnavailable": "Este actor no tiene Voluntad.",
   "DG_HUD.Notifications.NoPermissionToApply": "No puedes modificar ese objetivo — pide a tu Director que lo aplique.",
+  "DG_HUD.Notifications.NothingToRoll": "Esta arma no tiene ni fórmula de daño ni valor de Letalidad: no hay nada que tirar.",
   "DG_HUD.Notifications.SeveralTargets": "Hay varios objetivos marcados: no se aplicó nada. Marca uno solo para resolver el daño contra él.",
   "DG_HUD.Notifications.TargetGone": "Ese objetivo ya no existe.",
   "DG_HUD.Notifications.TargetHpUnreadable": "Ese objetivo no tiene puntos de vida legibles.",

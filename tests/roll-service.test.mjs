@@ -145,11 +145,86 @@ describe('Damage and Lethality — the sheet\'s own control', () => {
 
   it('rolls nothing when the player closes the dialog', async () => {
     build({ choice: null });
+    // A weapon carrying both is the only one that opens the dialog at all.
+    const item = makeWeapon({ damage: '2D10', lethality: 20, isLethal: true });
 
-    const result = await service.rollWeaponDamage({ actor, item: makeWeapon(), event: {} });
+    const result = await service.rollWeaponDamage({ actor, item, event: {} });
 
     expect(result).toBeNull();
     expect(api.processDGRoll).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Reported from a live world. The sheet's weapon row renders *one* of three
+   * controls (`weapons-section-partial.html`): the combined
+   * `damage-or-lethality` control only when `hasWeaponDamageAndLethality`, a
+   * plain `damage` control when only that, a plain `lethality` control when only
+   * that, and an empty cell when neither. The HUD opened the choice dialog
+   * unconditionally, so a Lethality-only weapon was asked a question the sheet
+   * never asks — and offered a *Roll Damage* button that rolls an empty formula
+   * (PAR-1, UX-1).
+   */
+  it('rolls Lethality straight away when the weapon has no damage formula', async () => {
+    const item = makeWeapon({ damage: '', lethality: 20, isLethal: true });
+
+    await service.rollWeaponDamage({ actor, item, event: {} });
+
+    expect(dialogs.showDamageOrLethalityChoiceDialog).not.toHaveBeenCalled();
+    expect(api.createDGRollFromDataset).toHaveBeenCalledWith(
+      { rolltype: 'lethality' },
+      expect.objectContaining({ actor, item })
+    );
+    expect(api.processDGRoll).toHaveBeenCalledOnce();
+  });
+
+  it('treats a damage formula of "0" as no damage, exactly as the sheet does', async () => {
+    const item = makeWeapon({ damage: '0', lethality: 15, isLethal: true });
+
+    await service.rollWeaponDamage({ actor, item, event: {} });
+
+    expect(dialogs.showDamageOrLethalityChoiceDialog).not.toHaveBeenCalled();
+    expect(api.createDGRollFromDataset).toHaveBeenCalledWith(
+      { rolltype: 'lethality' },
+      expect.anything()
+    );
+  });
+
+  it('rolls damage straight away when the weapon has no Lethality rating', async () => {
+    const item = makeWeapon({ damage: '1D12', lethality: 0 });
+
+    await service.rollWeaponDamage({ actor, item, event: {} });
+
+    expect(dialogs.showDamageOrLethalityChoiceDialog).not.toHaveBeenCalled();
+    expect(api.createDGRollFromDataset).toHaveBeenCalledWith(
+      { rolltype: 'damage' },
+      expect.objectContaining({ actor, item })
+    );
+  });
+
+  it('refuses out loud when the weapon offers neither, rather than asking', async () => {
+    const warn = vi.fn();
+    globalThis.ui = { notifications: { warn } };
+    const item = makeWeapon({ damage: '', lethality: 0 });
+
+    const result = await service.rollWeaponDamage({ actor, item, event: {} });
+
+    expect(result).toBeNull();
+    expect(dialogs.showDamageOrLethalityChoiceDialog).not.toHaveBeenCalled();
+    expect(api.processDGRoll).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it('still honours a choice the caller has already made', async () => {
+    // The damage prompt confirms the single option itself, then says which.
+    const item = makeWeapon({ damage: '', lethality: 20, isLethal: true });
+
+    await service.rollWeaponDamage({ actor, item, event: {}, choice: 'lethality' });
+
+    expect(dialogs.showDamageOrLethalityChoiceDialog).not.toHaveBeenCalled();
+    expect(api.createDGRollFromDataset).toHaveBeenCalledWith(
+      { rolltype: 'lethality' },
+      expect.anything()
+    );
   });
 
   // Found in a live world, not by these tests. `processDGRoll` opens the

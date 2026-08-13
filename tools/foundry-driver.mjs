@@ -285,6 +285,41 @@ async function weaponSetSwitch(page) {
 }
 
 /**
+ * The weapon panel's buttons, in render order, with what each weapon carries.
+ *
+ * Buttons are matched back to items by the name they display, because a check
+ * that clicks `.first()` asserts whatever that world happens to have equipped.
+ * `damage` and `lethality` mirror the system's `hasWeaponDamage` and
+ * `hasWeaponLethality` helpers, which are what the sheet picks its roll control
+ * with — and so what the HUD has to agree with.
+ *
+ * @returns {Promise<Array<{index: number, name: string, damage: boolean, lethality: boolean}>>}
+ */
+async function weaponLoadout(page) {
+  return page.evaluate(() => {
+    const actor = ui.deltaGreenCombatHud.actor;
+
+    return [...document.querySelectorAll('.dg-weapon-panel .item-button')].map((button, index) => {
+      // The title element, not the button — the button also holds the ammo
+      // count, and `textContent` on it returns "20\n\tLight Pistol". And
+      // `textContent`, not `innerText`: Argon upper-cases labels with
+      // `text-transform`, which `innerText` reflects and item names do not.
+      const name = button.querySelector('.action-element-title')?.textContent.trim() ?? '';
+      const item = actor?.items?.find((i) => i.type === 'weapon' && i.name === name);
+      const damage = String(item?.system?.damage ?? '').trim();
+      const lethality = Number(item?.system?.lethality);
+
+      return {
+        index,
+        name,
+        damage: damage !== '' && damage !== '0',
+        lethality: Number.isFinite(lethality) && lethality > 0
+      };
+    });
+  });
+}
+
+/**
  * Verify the behaviours unit tests cannot reach.
  *
  * Three things were written against assumptions about Foundry that only a real
@@ -443,11 +478,97 @@ async function verify() {
     record('attacking rolls without engaging the target picker', rolled && !picker, picker ? 'picker engaged' : '');
   }
 
-  // 5 — right-click surfaces the system's own damage-or-lethality dialog.
-  await page.locator('.dg-weapon-panel .item-button').first().click({ button: 'right' });
-  const dialog = page.locator('.dg-dialog--damage-or-lethality');
-  const dialogShown = await dialog.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
-  record('right-click opens the system\'s choice dialog', dialogShown);
+  /*
+   * 5 — right-click rolls damage the way the sheet's weapon row does.
+   *
+   * The sheet renders the combined `damage-or-lethality` control — the one that
+   * opens the choice dialog — only under `hasWeaponDamageAndLethality`, and a
+   * direct control otherwise. So *which* weapon is right-clicked decides what
+   * should happen, and clicking whichever button happens to be first asserted a
+   * different thing in every world. It passed here for a year against a weapon
+   * that carried both, while a Lethality-only weapon was being asked a question
+   * the sheet never asks (PAR-1).
+   */
+  /*
+   * One weapon serves both branches. Which control the HUD owes the player turns
+   * on a single field — whether the weapon also has a damage formula — so the
+   * check borrows that field and gives it back, rather than depending on what
+   * this world happens to have on the panel.
+   *
+   * Borrowing `damage` specifically, and never `equipped`: the Attacks panel *is*
+   * the active Argon weapon set, and `weapon-sets.mjs` rewrites `system.equipped`
+   * from that set on every refresh, so an equip from outside is reverted before
+   * it can be clicked.
+   */
+  const loadout = await weaponLoadout(page);
+  const subject = loadout.find((weapon) => weapon.lethality);
+
+  /** Set the subject's damage formula, and report what it was. */
+  const setDamage = (damage) =>
+    page.evaluate(async ({ name, damage }) => {
+      const item = ui.deltaGreenCombatHud.actor.items.find((i) => i.type === 'weapon' && i.name === name);
+      const was = item.system.damage;
+      if (was !== damage) await item.update({ 'system.damage': damage });
+      // The button holds the item document, so the roll path reads the new
+      // formula without a re-render — just as well, since a refresh would
+      // rebuild the loadout from the weapon set.
+      return was;
+    }, { name: subject?.name, damage });
+
+  let originalDamage = null;
+  let dialogShown = false;
+
+  if (!subject) {
+    record('a Lethality-only weapon rolls Lethality without asking', false, 'no weapon with a Lethality rating');
+    record('a weapon carrying both still opens the choice dialog', false, 'no weapon with a Lethality rating');
+  } else {
+    const button = page.locator('.dg-weapon-panel .item-button').nth(subject.index);
+
+    // Branch one: Lethality only. The sheet renders a direct control here, so
+    // the HUD must not ask.
+    originalDamage = await setDamage('');
+    const before = await page.evaluate(() => game.messages.contents.length);
+    await button.click({ button: 'right' });
+
+    const asked = await page
+      .locator('.dg-dialog--damage-or-lethality')
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+
+    // Scan everything posted since, not just the last message: with a target
+    // held, automation posts its damage proposal *after* the roll, so the
+    // Lethality card is no longer the one on the end.
+    const rolledLethality = await page
+      .waitForFunction(
+        (n) => game.messages.contents.slice(n).some((m) => m.rolls?.[0]?.options?.rollType === 'lethality'),
+        before,
+        { timeout: 6000 }
+      )
+      .then(() => true)
+      .catch(() => false);
+
+    if (asked) await page.keyboard.press('Escape');
+
+    record(
+      'a Lethality-only weapon rolls Lethality without asking',
+      !asked && rolledLethality,
+      asked ? `${subject.name}: asked damage-or-Lethality` : subject.name
+    );
+
+    // Branch two: both. Now the choice is real, and the system's own dialog is
+    // what must decide it (PAR-3).
+    await setDamage(originalDamage && originalDamage !== '0' ? originalDamage : '1D6');
+    await button.click({ button: 'right' });
+
+    dialogShown = await page
+      .locator('.dg-dialog--damage-or-lethality')
+      .waitFor({ state: 'visible', timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+
+    record('a weapon carrying both still opens the choice dialog', dialogShown, subject.name);
+  }
 
   // 4 — the full damage → propose → apply path, against a real target.
   let applied = null;
@@ -550,23 +671,33 @@ async function verify() {
   record('shift-click an attack reaches the modifier dialog', attackDialog, presets.join(' '));
   await dismiss();
 
-  await page.locator('.dg-weapon-panel .item-button').first().click({ button: 'right', modifiers: ['Shift'] });
-  const choice = await page
-    .waitForSelector('dialog.dg-dialog-app--damage-or-lethality', { timeout: 6000 })
-    .then(() => true)
-    .catch(() => false);
-
-  if (choice) {
-    await page.locator('dialog.dg-dialog-app--damage-or-lethality button[data-action="damage"]').first().click();
-    const damageDialog = await page
-      .waitForSelector(DAMAGE_DIALOG, { timeout: 6000 })
+  // The subject is still carrying its borrowed damage formula, so the choice
+  // dialog stands between the gesture and the modifier dialog — the longest form
+  // of this path.
+  if (subject) {
+    await page.locator('.dg-weapon-panel .item-button').nth(subject.index).click({ button: 'right', modifiers: ['Shift'] });
+    const choice = await page
+      .waitForSelector('dialog.dg-dialog-app--damage-or-lethality', { timeout: 6000 })
       .then(() => true)
       .catch(() => false);
-    record('shift + right-click reaches the damage modifier dialog', damageDialog);
-    await dismiss();
+
+    if (choice) {
+      await page.locator('dialog.dg-dialog-app--damage-or-lethality button[data-action="damage"]').first().click();
+      const damageDialog = await page
+        .waitForSelector(DAMAGE_DIALOG, { timeout: 6000 })
+        .then(() => true)
+        .catch(() => false);
+      record('shift + right-click reaches the damage modifier dialog', damageDialog);
+      await dismiss();
+    } else {
+      record('shift + right-click reaches the damage modifier dialog', false, 'no choice dialog');
+    }
   } else {
-    record('shift + right-click reaches the damage modifier dialog', false, 'no choice dialog');
+    record('shift + right-click reaches the damage modifier dialog', false, 'no weapon with a Lethality rating');
   }
+
+  // Give the damage formula back — nothing below needs it borrowed.
+  if (subject && originalDamage !== null) await setDamage(originalDamage);
 
   // 7 — a hit offers the damage roll immediately, without hunting the chat log.
   // The skill is forced to 99 so the attack lands, then put back.
@@ -585,23 +716,42 @@ async function verify() {
     record('a hit offers the damage roll', false, 'could not force a hit');
   } else {
     const seen = await page.evaluate(() => game.messages.contents.length);
-    await page.locator('.dg-weapon-panel .item-button').first().click();
 
-    // DialogV2.confirm's yes/no pair is what distinguishes our prompt from the
-    // system's own dialogs, which use named actions.
-    const PROMPT = 'dialog:has(button[data-action="yes"]):has(button[data-action="no"])';
-    const prompt = await page
-      .waitForSelector(PROMPT, { timeout: 8000 })
+    // The button for the weapon whose skill was forced, not whichever is first —
+    // otherwise the attack that lands and the weapon being offered can differ.
+    const attacker = (await weaponLoadout(page)).find((weapon) => weapon.name === forced.weapon);
+    await page.locator('.dg-weapon-panel .item-button').nth(attacker?.index ?? 0).click();
+
+    /*
+     * The offer takes one of two forms, and the weapon decides which:
+     * `damage-prompt` asks a plain yes/no when only one roll is available, and
+     * defers to the system's own choice dialog when the weapon carries both.
+     * Either is the offer arriving — asserting only the yes/no form made this
+     * check depend on what the world happened to have on the panel.
+     *
+     * DialogV2.confirm's yes/no pair is what distinguishes our prompt from the
+     * system's own dialogs, which use named actions.
+     */
+    const CONFIRM = 'dialog:has(button[data-action="yes"]):has(button[data-action="no"])';
+    const CHOICE = 'dialog.dg-dialog-app--damage-or-lethality';
+
+    const offered = await page
+      .waitForSelector(`${CONFIRM}, ${CHOICE}`, { timeout: 8000 })
       .then(() => true)
       .catch(() => false);
 
-    record('a hit offers the damage roll straight away', prompt, forced.weapon);
+    record('a hit offers the damage roll straight away', offered, forced.weapon);
 
-    if (prompt) {
+    if (offered) {
       // Accept, and confirm the follow-up roll actually reached chat.
       // `force`: the button's own label element takes the hit and bubbles, which
       // Playwright reports as the subtree intercepting pointer events.
-      await page.locator(`${PROMPT} button[data-action="yes"]`).first().click({ force: true });
+      const asChoice = (await page.locator(CHOICE).count()) > 0;
+      await page
+        .locator(asChoice ? `${CHOICE} button[data-action="damage"]` : `${CONFIRM} button[data-action="yes"]`)
+        .first()
+        .click({ force: true });
+
       const rolled = await page
         .waitForFunction((n) => game.messages.contents.length > n + 1, seen, { timeout: 8000 })
         .then(() => true)

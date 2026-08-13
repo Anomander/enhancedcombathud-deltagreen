@@ -12,6 +12,7 @@
  */
 
 import { Logger } from './logger.mjs';
+import { weaponDamageOptions } from './actor-adapter.mjs';
 import { spendWillpowerForBonus } from './roll-handler.mjs';
 import { getWpBoostSettings } from './settings.mjs';
 import { describeRoll, wasEvaluated } from './roll-outcome.mjs';
@@ -325,11 +326,12 @@ export class RollService {
   /**
    * Roll a weapon's damage or Lethality, exactly as the character sheet does.
    *
-   * The sheet's weapon row carries a combined `damage-or-lethality` control that
-   * opens the system's own choice dialog and then rolls whichever the player
-   * picked (`roll-sheet-mixin.js` `_onRoll`). This mirrors that: same dialog,
-   * same two calls, so parity holds by construction rather than by discipline
-   * (PAR-1, PAR-3).
+   * The sheet's weapon row renders one roll control, chosen from what the weapon
+   * carries: the combined `damage-or-lethality` control that opens the system's
+   * own choice dialog, or a direct `damage` or `lethality` control
+   * (`weapons-section-partial.html`, `roll-sheet-mixin.js` `_onRoll`). This
+   * mirrors that — see `#chooseDamageRoll` — so parity holds by construction
+   * rather than by discipline (PAR-1, PAR-3).
    *
    * Deliberately does *not* branch on `system.isLethal`. A weapon can carry both
    * a damage formula and a Lethality rating, and choosing between them is the
@@ -357,16 +359,11 @@ export class RollService {
       return null;
     }
 
-    // A caller that already knows which to roll — because the weapon only
-    // offers one, and the player has just confirmed it — must not be asked
-    // again. Otherwise the system's own dialog decides (PAR-3).
-    let rollType = choice;
-    if (!rollType) {
-      const { showDamageOrLethalityChoiceDialog } = await this.dialogApi();
-      rollType = await showDamageOrLethalityChoiceDialog({ itemName: item.name ?? '' });
-    }
+    // A caller that already knows which to roll — because the player has just
+    // confirmed it — must not be asked again.
+    const rollType = choice ?? (await this.#chooseDamageRoll(item));
 
-    // The player closed the dialog — roll nothing.
+    // The player closed the dialog, or the weapon offers nothing to roll.
     if (!rollType) return null;
 
     const { createDGRollFromDataset, processDGRoll } = await this.api();
@@ -377,6 +374,47 @@ export class RollService {
 
     await processDGRoll(asPlainRoll(event), roll);
     return this.#settle(roll);
+  }
+
+  /**
+   * Which of the two to roll, asking the player only when it is genuinely a
+   * choice.
+   *
+   * The sheet's weapon row renders exactly one control, chosen from the same two
+   * predicates (`templates/actor/partials/weapons-section-partial.html`): the
+   * combined `damage-or-lethality` control — the one that opens this dialog —
+   * *only* under `hasWeaponDamageAndLethality`, a direct `damage` or `lethality`
+   * control when the weapon carries one of them, and an empty cell when it
+   * carries neither.
+   *
+   * Asking unconditionally therefore broke parity in both directions (PAR-1): it
+   * put a question to the player the sheet never asks, and offered a *Roll
+   * Damage* button for a weapon whose damage formula is empty — a control that
+   * cannot act (UX-1). Deferring to the system's dialog is right only where the
+   * system itself has something to ask (PAR-3); where the weapon decides the
+   * answer, reading the weapon *is* the parity-preserving behaviour.
+   *
+   * Still deliberately does not branch on `system.isLethal` — a weapon can carry
+   * both, and choosing between them remains the player's call.
+   *
+   * @returns {Promise<'damage'|'lethality'|null>} null if declined or impossible.
+   */
+  async #chooseDamageRoll(item) {
+    const options = weaponDamageOptions(item);
+
+    if (options.damage && options.lethality) {
+      const { showDamageOrLethalityChoiceDialog } = await this.dialogApi();
+      return await showDamageOrLethalityChoiceDialog({ itemName: item.name ?? '' });
+    }
+
+    if (options.damage) return 'damage';
+    if (options.lethality) return 'lethality';
+
+    // The sheet renders an empty cell here. Refusing out loud rather than
+    // opening a dialog whose every button rolls nothing (AUTO-5, UX-6).
+    notify('warn', 'DG_HUD.Notifications.NothingToRoll');
+    Logger.debug('Weapon offers neither damage nor Lethality', { item: item.name });
+    return null;
   }
 }
 

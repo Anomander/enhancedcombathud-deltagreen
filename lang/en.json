@@ -75,6 +75,7 @@
   "DG_HUD.Notifications.WpInsufficient": "Not enough Willpower.",
   "DG_HUD.Notifications.WpUnavailable": "This actor has no Willpower.",
   "DG_HUD.Notifications.NoPermissionToApply": "You cannot change that target — ask your Handler to apply it.",
+  "DG_HUD.Notifications.NothingToRoll": "This weapon has neither a damage formula nor a Lethality rating — there is nothing to roll.",
   "DG_HUD.Notifications.SeveralTargets": "Several targets held — nothing was applied. Target one to resolve damage against it.",
   "DG_HUD.Notifications.TargetGone": "That target no longer exists.",
   "DG_HUD.Notifications.TargetHpUnreadable": "That target has no readable hit points.",

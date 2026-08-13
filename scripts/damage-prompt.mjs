@@ -15,29 +15,9 @@
  */
 
 import { EVENTS, on } from './events.mjs';
+import { weaponDamageOptions } from './actor-adapter.mjs';
 import { rollService } from './roll-service.mjs';
 import { Logger } from './logger.mjs';
-
-/**
- * Which follow-up rolls this weapon actually offers.
- *
- * Mirrors the system's own `hasWeaponDamage` and `hasWeaponLethality` helpers
- * (`utils/register-helpers.js`) exactly, so the prompt can never offer a roll
- * the chat card would have withheld — a Lethality button on a weapon with no
- * Lethality rating would roll against 0 and always fail (UX-1).
- *
- * @param {object|null} item - A weapon item.
- * @returns {{damage: boolean, lethality: boolean}}
- */
-export function weaponDamageOptions(item) {
-  const damage = String(item?.system?.damage ?? '').trim();
-  const lethality = Number(item?.system?.lethality);
-
-  return {
-    damage: damage !== '' && damage !== '0',
-    lethality: Number.isFinite(lethality) && lethality > 0
-  };
-}
 
 /**
  * Should a successful attack be followed by an offer to roll damage?
