@@ -80,12 +80,22 @@ jobs:
         run: |
           MISSING=0
           CONTENTS=$(unzip -Z1 "${{ env.ZIP_NAME }}")
-          for path in $(jq -r '[.esmodules[]?, .scripts[]?, .styles[]?, (.languages[]?.path)] | .[]' module.json); do
+          # `scripts` and `styles` entries are each either a path or a {src: path}
+          # object — Foundry accepts both, and this module uses the object form.
+          # Read line by line rather than word-splitting, so a path with a space
+          # stays one path.
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
             if ! grep -qxF "$path" <<< "$CONTENTS"; then
               echo "::error::module.json declares '$path', but it is not in ${{ env.ZIP_NAME }}"
               MISSING=1
             fi
-          done
+          done < <(jq -r '[
+              .esmodules[]?,
+              (.scripts[]? | if type == "object" then .src else . end),
+              (.styles[]?  | if type == "object" then .src else . end),
+              .languages[]?.path
+            ] | .[]' module.json)
           if [[ "$MISSING" == "1" ]]; then
             echo "Archive contents were:"
             echo "$CONTENTS"
