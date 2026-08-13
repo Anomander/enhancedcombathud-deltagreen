@@ -308,10 +308,15 @@ export class RollService {
    * a damage formula and a Lethality rating, and choosing between them is the
    * player's call, not the module's.
    *
-   * @param {{actor?: object, token?: object, item: object, event?: object}} params
+   * @param {object} params
+   * @param {object} [params.actor]
+   * @param {object} [params.token]
+   * @param {object} params.item
+   * @param {object} [params.event]
+   * @param {'damage'|'lethality'|null} [params.choice] - Already decided; skips the dialog.
    * @returns {Promise<object|null>} The roll, or null if refused or cancelled.
    */
-  async rollWeaponDamage({ actor = null, token = null, item, event = {} }) {
+  async rollWeaponDamage({ actor = null, token = null, item, event = {}, choice = null }) {
     if (actor) {
       const permitted = this.canAct(actor);
       if (!permitted.allowed) {
@@ -325,15 +330,21 @@ export class RollService {
       return null;
     }
 
-    const { showDamageOrLethalityChoiceDialog } = await this.dialogApi();
-    const choice = await showDamageOrLethalityChoiceDialog({ itemName: item.name ?? '' });
+    // A caller that already knows which to roll — because the weapon only
+    // offers one, and the player has just confirmed it — must not be asked
+    // again. Otherwise the system's own dialog decides (PAR-3).
+    let rollType = choice;
+    if (!rollType) {
+      const { showDamageOrLethalityChoiceDialog } = await this.dialogApi();
+      rollType = await showDamageOrLethalityChoiceDialog({ itemName: item.name ?? '' });
+    }
 
     // The player closed the dialog — roll nothing.
-    if (!choice) return null;
+    if (!rollType) return null;
 
     const { createDGRollFromDataset, processDGRoll } = await this.api();
     const roll = createDGRollFromDataset(
-      { rolltype: choice },
+      { rolltype: rollType },
       { actor, item, token: toTokenDocument(token) }
     );
 

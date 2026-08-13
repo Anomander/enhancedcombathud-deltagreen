@@ -42,6 +42,7 @@ go* table are in [DESIGN.md §1](DESIGN.md). In short:
 | `roll-outcome.mjs` | core | Reads a finished roll: evaluated or not, success, Lethality. Pure. | anything |
 | `resolution.mjs` | core | Damage after armour and armour piercing. Pure. | anything |
 | `automation.mjs` | core | Resolves damage against the target and offers it in chat. | root |
+| `damage-prompt.mjs` | core | Offers the damage roll the moment an attack lands. | root |
 | `events.mjs` | core | In-module event bus for roll outcomes. | anything |
 | `targeting.mjs` | core | What may be said about the current target. Pure. | anything |
 | `roll-handler.mjs` | core | Pure math for the Willpower Boost house rule. No I/O. | anything |

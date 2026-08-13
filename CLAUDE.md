@@ -91,6 +91,7 @@ Four layers; dependencies point down only. Full diagram in
 - `scripts/roll-outcome.mjs` — Reads a finished roll. Pure.
 - `scripts/resolution.mjs` — Damage after armour. Pure. The one place a rule is encoded.
 - `scripts/automation.mjs` — Resolves damage against the target, offers it in chat.
+- `scripts/damage-prompt.mjs` — Offers the damage roll the moment an attack lands.
 - `scripts/events.mjs` — In-module bus publishing roll outcomes.
 - `scripts/targeting.mjs` — What may be said about the current target. Pure.
 - `scripts/roll-handler.mjs` — Pure math for the Willpower Boost house rule only.

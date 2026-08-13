@@ -475,7 +475,9 @@ async function verify() {
           () => {
             const message = game.messages.contents.at(-1);
             const pending = message?.flags?.['enhancedcombathud-deltagreen']?.pendingDamage;
-            return pending ? { id: message.id, applied: pending.resolution.applied } : false;
+            return pending
+              ? { id: message.id, applied: pending.resolution.applied, hpAfter: pending.resolution.hpAfter }
+              : false;
           },
           null,
           { timeout: 8000 }
@@ -511,10 +513,106 @@ async function verify() {
           return { before: hp, after };
         }, targeted);
 
-        record('clicking Apply writes to the target', applied.after < applied.before, `${applied.before} → ${applied.after}`);
+        // Assert the write matched the proposal, not that hit points fell — a
+        // roll fully absorbed by armour proposes zero, and applying zero is the
+        // correct outcome, not a failure.
+        record(
+          'clicking Apply writes exactly what was proposed',
+          applied.after === card.hpAfter,
+          `${applied.before} → ${applied.after}, proposed ${card.hpAfter}`
+        );
       }
 
     }
+  }
+
+  // 6 — the modifier ladder. PAR-1's most visible promise: shift reaches the
+  // system's own dialog from the HUD exactly as it does from the sheet. A plain
+  // right-click must NOT, since in the HUD that gesture means "roll damage".
+  const dismiss = async () => {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+  };
+  const PERCENTILE_DIALOG = 'dialog:has([name="targetModifier"])';
+  const DAMAGE_DIALOG = 'dialog.dg-dialog-app--modify-damage-roll';
+
+  await page.locator('.dg-weapon-panel .item-button').first().click({ modifiers: ['Shift'] });
+  const attackDialog = await page
+    .waitForSelector(PERCENTILE_DIALOG, { timeout: 6000 })
+    .then(() => true)
+    .catch(() => false);
+  const presets = attackDialog
+    ? (await page.locator(`${PERCENTILE_DIALOG} button[data-action^="mod"]`).allInnerTexts()).filter(Boolean)
+    : [];
+  record('shift-click an attack reaches the modifier dialog', attackDialog, presets.join(' '));
+  await dismiss();
+
+  await page.locator('.dg-weapon-panel .item-button').first().click({ button: 'right', modifiers: ['Shift'] });
+  const choice = await page
+    .waitForSelector('dialog.dg-dialog-app--damage-or-lethality', { timeout: 6000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (choice) {
+    await page.locator('dialog.dg-dialog-app--damage-or-lethality button[data-action="damage"]').first().click();
+    const damageDialog = await page
+      .waitForSelector(DAMAGE_DIALOG, { timeout: 6000 })
+      .then(() => true)
+      .catch(() => false);
+    record('shift + right-click reaches the damage modifier dialog', damageDialog);
+    await dismiss();
+  } else {
+    record('shift + right-click reaches the damage modifier dialog', false, 'no choice dialog');
+  }
+
+  // 7 — a hit offers the damage roll immediately, without hunting the chat log.
+  // The skill is forced to 99 so the attack lands, then put back.
+  const forced = await page.evaluate(async () => {
+    const actor = ui.deltaGreenCombatHud.actor;
+    const item = [...actor.items].find((i) => i.type === 'weapon' && i.system.equipped);
+    const key = item?.system?.skill;
+    const before = actor.system.skills?.[key]?.proficiency;
+    if (before === undefined) return null;
+
+    await actor.update({ [`system.skills.${key}.proficiency`]: 99 });
+    return { key, before, weapon: item.name };
+  });
+
+  if (!forced) {
+    record('a hit offers the damage roll', false, 'could not force a hit');
+  } else {
+    const seen = await page.evaluate(() => game.messages.contents.length);
+    await page.locator('.dg-weapon-panel .item-button').first().click();
+
+    // DialogV2.confirm's yes/no pair is what distinguishes our prompt from the
+    // system's own dialogs, which use named actions.
+    const PROMPT = 'dialog:has(button[data-action="yes"]):has(button[data-action="no"])';
+    const prompt = await page
+      .waitForSelector(PROMPT, { timeout: 8000 })
+      .then(() => true)
+      .catch(() => false);
+
+    record('a hit offers the damage roll straight away', prompt, forced.weapon);
+
+    if (prompt) {
+      // Accept, and confirm the follow-up roll actually reached chat.
+      // `force`: the button's own label element takes the hit and bubbles, which
+      // Playwright reports as the subtree intercepting pointer events.
+      await page.locator(`${PROMPT} button[data-action="yes"]`).first().click({ force: true });
+      const rolled = await page
+        .waitForFunction((n) => game.messages.contents.length > n + 1, seen, { timeout: 8000 })
+        .then(() => true)
+        .catch(() => false);
+      record('accepting the offer rolls the damage', rolled);
+    }
+
+    await page.evaluate(
+      async ({ key, before }) => {
+        const actor = ui.deltaGreenCombatHud.actor;
+        await actor.update({ [`system.skills.${key}.proficiency`]: before });
+      },
+      forced
+    );
   }
 
   console.table(checks);

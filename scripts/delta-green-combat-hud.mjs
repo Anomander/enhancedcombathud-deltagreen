@@ -13,12 +13,14 @@ import { registerSettings, MODULE_ID } from './settings.mjs';
 import { registerArgonComponents } from './argon/register.mjs';
 import { DeltaGreenCombatHudAPI } from './api.mjs';
 import { registerAutomation, activateCardListeners } from './automation.mjs';
+import { registerDamagePrompt } from './damage-prompt.mjs';
 import { EVENTS, on } from './events.mjs';
 import { Logger } from './logger.mjs';
 
 Hooks.once('init', () => {
   registerSettings();
   registerAutomation();
+  registerDamagePrompt();
 
   // Republish roll outcomes as a Foundry hook, so other modules — Sequencer
   // effects among them — can attach without importing anything of ours (FR-25).

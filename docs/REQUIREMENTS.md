@@ -74,6 +74,7 @@ Hard constraints. Violating any of these means the module does not run.
 | **FR-22** | Every automatic state change states what changed, on whom, and why. | shipped | **AUTO-3** |
 | **FR-23** | Never write to a document the acting user lacks permission to update — route it or refuse, never fail silently. | shipped | **AUTO-4** |
 | **FR-24** | Missing input (no target, no armour value) means decline out loud and change nothing. Never assume a default. | shipped | **AUTO-5**, SYS-5 |
+| **FR-28** | A successful weapon attack offers its damage roll immediately, to the player who rolled, presenting exactly the options the system's chat card would. | shipped | pain 3, **PAR-3** |
 | **FR-25** | Roll outcomes are observable as events, so effects can be attached without editing click handlers. Prerequisite for Sequencer integration. | shipped | [PRODUCT.md](PRODUCT.md) roadmap |
 
 ### Supporting

@@ -41,6 +41,11 @@ rather than left to advertise features that no longer exist.
   visible rather than silent. Names honour each token's display-name mode and are withheld
   when the Handler has hidden them; the *actor's* portrait is never used, only token art that
   is already on the canvas, and hit points and condition are never shown.
+- **Damage prompt on a hit.** A successful weapon attack immediately asks the player who
+  rolled whether to roll damage, instead of leaving them to find the buttons on the chat card.
+  It offers exactly what that card would — the system's own damage-or-lethality dialog when a
+  weapon has both, a plain confirmation when it has only one, and nothing at all when it has
+  neither — and rolls through the same path the character sheet uses.
 - **Public API** on `ui.deltaGreenCombatHud`.
 - **Diagnostics** — `ui.deltaGreenCombatHud.diagnose()` reports what the HUD sees and built.
 

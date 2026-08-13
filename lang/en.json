@@ -37,6 +37,12 @@
   "DG_HUD.Target.Retarget": "Re-target",
   "DG_HUD.Target.Select": "Select target",
 
+  "DG_HUD.Prompt.Title": "Attack hit",
+  "DG_HUD.Prompt.Question": "{weapon} hit. {roll}?",
+  "DG_HUD.Prompt.RollDamage": "Roll damage",
+  "DG_HUD.Prompt.RollLethality": "Roll lethality",
+  "DG_HUD.Prompt.Decline": "Not now",
+
   "DG_HUD.Apply.HeadingProposed": "Damage to apply",
   "DG_HUD.Apply.HeadingApplied": "Damage applied",
   "DG_HUD.Apply.Arithmetic": "{rolled} rolled − {armor} armour = {through} through",

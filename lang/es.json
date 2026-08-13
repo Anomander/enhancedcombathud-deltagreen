@@ -37,6 +37,12 @@
   "DG_HUD.Target.Retarget": "Cambiar objetivo",
   "DG_HUD.Target.Select": "Elegir objetivo",
 
+  "DG_HUD.Prompt.Title": "Ataque acertado",
+  "DG_HUD.Prompt.Question": "{weapon} acertó. ¿{roll}?",
+  "DG_HUD.Prompt.RollDamage": "Tirar daño",
+  "DG_HUD.Prompt.RollLethality": "Tirar letalidad",
+  "DG_HUD.Prompt.Decline": "Ahora no",
+
   "DG_HUD.Apply.HeadingProposed": "Daño por aplicar",
   "DG_HUD.Apply.HeadingApplied": "Daño aplicado",
   "DG_HUD.Apply.Arithmetic": "{rolled} obtenido − {armor} de armadura = {through} de paso",

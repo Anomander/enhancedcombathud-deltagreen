@@ -23,6 +23,8 @@ and Motivations, all rolled through the Delta Green system's own dice pipeline.
 - **Attacks** — every equipped weapon, with damage, lethality, armour piercing, range and
   ammo in the tooltip. Left-click attacks; right-click asks whether to roll damage or
   Lethality, using the system's own dialog.
+- **On a hit** — a successful attack asks whether to roll damage there and then, offering
+  exactly what the system's chat card would. The card stays as the record.
 - **Damage automation** — after a damage or Lethality roll against a target, the result is
   resolved through armour and armour piercing and offered in chat with an *Apply* button.
   The write runs as whoever clicks it, so a Handler can apply a player's roll.
