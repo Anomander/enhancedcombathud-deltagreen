@@ -1,0 +1,166 @@
+{
+  "system": {
+    "id": "deltagreen",
+    "version": "2.0.1"
+  },
+  "actorTypes": [
+    "agent",
+    "npc",
+    "unnatural",
+    "vehicle"
+  ],
+  "itemTypes": [
+    "armor",
+    "bond",
+    "gear",
+    "motivation",
+    "profession",
+    "ritual",
+    "tome",
+    "weapon"
+  ],
+  "skills": {
+    "human": [
+      "accounting",
+      "alertness",
+      "anthropology",
+      "archeology",
+      "artillery",
+      "athletics",
+      "bureaucracy",
+      "computer_science",
+      "criminology",
+      "demolitions",
+      "disguise",
+      "dodge",
+      "drive",
+      "firearms",
+      "first_aid",
+      "forensics",
+      "heavy_machiner",
+      "heavy_weapons",
+      "history",
+      "humint",
+      "law",
+      "medicine",
+      "melee_weapons",
+      "navigate",
+      "occult",
+      "persuade",
+      "pharmacy",
+      "psychotherapy",
+      "ride",
+      "search",
+      "sigint",
+      "stealth",
+      "surgery",
+      "survival",
+      "swim",
+      "unarmed_combat"
+    ],
+    "unnatural": [
+      "accounting",
+      "alertness",
+      "anthropology",
+      "archeology",
+      "artillery",
+      "athletics",
+      "bureaucracy",
+      "computer_science",
+      "criminology",
+      "demolitions",
+      "disguise",
+      "dodge",
+      "drive",
+      "firearms",
+      "first_aid",
+      "forensics",
+      "heavy_machiner",
+      "heavy_weapons",
+      "history",
+      "humint",
+      "law",
+      "medicine",
+      "melee_weapons",
+      "navigate",
+      "occult",
+      "persuade",
+      "pharmacy",
+      "psychotherapy",
+      "ride",
+      "search",
+      "sigint",
+      "stealth",
+      "surgery",
+      "survival",
+      "swim",
+      "unarmed_combat"
+    ]
+  },
+  "skillEntryFields": [
+    "failure",
+    "label",
+    "proficiency"
+  ],
+  "resourceFields": [
+    "max",
+    "min",
+    "value"
+  ],
+  "actors": {
+    "base": {
+      "resources": [
+        "health",
+        "wp"
+      ]
+    },
+    "agent": {
+      "sanity": [
+        "adaptations",
+        "currentBreakingPoint",
+        "max",
+        "maxBonus",
+        "value"
+      ],
+      "hasSkills": true
+    },
+    "npc": {
+      "sanity": [
+        "currentBreakingPoint",
+        "max",
+        "value"
+      ],
+      "hasSkills": true
+    },
+    "unnatural": {
+      "sanity": [
+        "failedLoss",
+        "notes",
+        "successLoss"
+      ],
+      "hasSkills": true
+    }
+  },
+  "derivedArmorPath": "system.health.protection",
+  "items": {
+    "weapon": [
+      "ammo",
+      "armorPiercing",
+      "customSkillTarget",
+      "damage",
+      "equipped",
+      "expense",
+      "isLethal",
+      "killRadius",
+      "lethality",
+      "range",
+      "skill",
+      "skillModifier"
+    ],
+    "armor": [
+      "equipped",
+      "expense",
+      "protection"
+    ]
+  }
+}

@@ -1,47 +1,102 @@
-# Delta Green Enhanced Combat HUD
+# Delta Green — Enhanced Combat HUD
 
-An Enhanced Combat HUD interface designed specifically for the **Delta Green** game system in **Foundry VTT**. Inspired by Argon / Enhanced Combat HUD, this module provides an intuitive, tactical bottom dock for Agents and Handlers during combat operations.
+A Delta Green module for **[Argon - Combat HUD (CORE)](https://github.com/theripper93/enhancedcombathud)**
+in Foundry VTT. It teaches Argon how to read an Agent: vitals, weapons, skills, Sanity, Bonds
+and Motivations, all rolled through the Delta Green system's own dice pipeline.
 
-![Delta Green Combat HUD Banner](https://raw.githubusercontent.com/Anomander/delta-green-combat-hud/main/docs/assets/banner.png)
+> **Argon Core is required.** This module contributes components to Argon and does nothing on
+> its own. Install *Argon - Combat HUD (CORE)* first.
 
-## Features
+## Requirements
 
-- 🛡️ **Agent Vitals & Dossier**: Direct real-time tracking of Hit Points (HP), Willpower Points (WP), Sanity (SAN), Breaking Point, and Armor rating.
-- 🔫 **Weapon Set Slots**: Rapid item equipping & weapon switching (Primary, Secondary, Melee/Unarmed, Tactical/Explosives).
-- 🎲 **Tactical Roll Engine**: Integrated percentile checks for Firearms, Heavy Weapons, Melee, Lethality percentage rolls, Damage rolls, and Skill checks.
-- 🧠 **Sanity & Willpower Actions**: Quick SAN Loss rolls, Adapting to Helplessness/Violence checks, and Willpower expenditure (+20% bonus boost / panic suppression).
-- 🎯 **Tactical Targeting Overlay**: Select targets on canvas directly from the HUD (`Shift+A` keybind, token control toggle, `T`/`+`/`-` hotkeys).
-- ⚡ **Combat Turn Tracker**: Integrates with Foundry Combat Tracker to manage movement allowance, action status, and turn passing.
-- 🎨 **Handler/Agent Aesthetic**: Dark, classified tactical interface with sleek green neon highlights and glassmorphism.
+| | Version |
+|---|---|
+| Foundry VTT | v14 |
+| Delta Green system | 2.0.0 or later |
+| Argon - Combat HUD (CORE) | 5.0.0 or later |
 
-## Installation
+## What it adds
 
-### Manifest URL
-To install the module in Foundry VTT:
-1. Open the **Foundry VTT Setup Screen** -> **Add-on Modules**.
-2. Click **Install Module**.
-3. Paste the following manifest link into the **Manifest URL** field:
-   ```
-   https://github.com/Anomander/delta-green-combat-hud/releases/latest/download/module.json
-   ```
-4. Click **Install**.
+- **Portrait** — HP, WP, Sanity, Breaking Point and armour, with the Breaking Point
+  highlighted once an Agent is at or below it. Sanity respects the system's
+  *Keep Sanity Private* setting, so players don't see what they shouldn't.
+- **Attacks** — every equipped weapon, with damage, lethality, armour piercing, range and
+  ammo in the tooltip. Left-click attacks; right-click asks whether to roll damage or
+  Lethality, using the system's own dialog.
+- **Damage automation** — after a damage or Lethality roll against a target, the result is
+  resolved through armour and armour piercing and offered in chat with an *Apply* button.
+  The write runs as whoever clicks it, so a Handler can apply a player's roll.
+- **Targeting** — a readout beside the portrait shows who you are pointing at, and says so
+  when nothing is targeted or several things are. It reports names only, honouring each
+  token's display-name setting; an adversary's condition is never shown. Attacks ask Argon
+  for a target first, if you have its target picker switched on.
+- **Reactions** — Dodge and Fight Back, shown only when the actor has the skill.
+- **Skills** — every skill the system defines, grouped into trained and untrained, including
+  typed skills and Special Training.
+- **Sanity** — a Sanity test button, plus an optional Willpower Boost house rule.
+- **Agent Record drawer** — statistics, Bonds and Motivations at a glance.
 
-## Usage
+Rolls go through the Delta Green system unchanged, so modifier dialogs (shift-click), chat
+cards and Dice So Nice all behave exactly as they do on the character sheet.
 
-- **Toggle HUD**: Press `Shift+A` or click the crossed swords icon in the Token Control toolbar.
-- **Equip Weapons**: Drag items directly into weapon slots or select from the weapon tray.
-- **Target Selection**: Click an attack action to activate target mode, then left-click target tokens.
+## Supported actors
 
-## Developer & Contributing
+Agents, NPCs and Unnatural creatures. Vehicles are excluded — they have no Willpower, Sanity
+or skills. An Unnatural shows no Sanity row, because the system gives it SAN-loss formulas
+rather than a Sanity score.
 
-See [CLAUDE.md](CLAUDE.md) for build, testing, and release guidelines.
+## Settings
 
-```bash
-npm install     # Install dependencies
-npm test        # Run Vitest test suite
-npm run build   # Build distribution bundle in dist/
+| Setting | Default | Effect |
+|---|---|---|
+| Damage automation | Propose | *Propose* offers the resolved damage in chat; *Auto-apply* applies it immediately where permitted. |
+| Enable Willpower Boost | Off | House rule: spend WP for a bonus on the next roll. Nothing is spent until you roll. |
+| Willpower Boost cost | 1 | WP spent per boost. |
+| Willpower Boost bonus | 20 | Percentile bonus granted. |
+| Debug logging | Off | Detailed HUD activity in the browser console. |
+
+HUD position, theme, size and the toggle keybinding are all configured in **Argon Core's**
+own settings.
+
+## API
+
+```js
+const hud = ui.deltaGreenCombatHud;
+
+await hud.rollSkill("firearms");
+await hud.rollSanity();
+await hud.rollWeaponDamage(weaponId);   // asks damage or Lethality, as the sheet does
+
+hud.toggleWillpowerBoost();             // arm or cancel; nothing is spent until you roll
+hud.isWillpowerBoostArmed();
+
+hud.getSkills();   // the current actor's skills, as the HUD sees them
+hud.toggle();
 ```
 
-## License
+Every evaluated roll is also published as a hook, so other modules can react without
+patching anything:
 
-[MIT License](LICENSE)
+```js
+Hooks.on("enhancedcombathud-deltagreen.rollOutcome", (outcome) => {
+  // { type, actor, token, item, total, target, success, critical, lethal, nonLethalDamage }
+});
+```
+
+## Development
+
+```bash
+npm test              # unit tests
+npm run sync:schema   # refresh the Delta Green schema snapshot
+npm run build         # release artifact only
+```
+
+No build step is needed for development — Foundry loads `scripts/` as native ESM.
+
+See the **[project wiki](docs/README.md)** for the product definition, design guidelines,
+architecture, requirements, testing strategy and release process, and
+[CLAUDE.md](CLAUDE.md) for the invariants contributions must hold to.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).

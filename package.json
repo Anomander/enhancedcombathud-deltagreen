@@ -7,12 +7,18 @@
     "build": "node tools/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "sync:schema": "node tools/sync-system-schema.mjs",
+    "sync:argon": "node tools/sync-argon-contract.mjs",
+    "fvtt:probe": "node tools/foundry-driver.mjs probe",
+    "fvtt:diagnose": "node tools/foundry-driver.mjs diagnose",
+    "fvtt:smoke": "node tools/foundry-driver.mjs smoke",
+    "fvtt:verify": "node tools/foundry-driver.mjs verify"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.7",
     "esbuild": "^0.28.1",
-    "handlebars": "^4.7.9",
+    "playwright": "^1.62.1",
     "vitest": "^3.2.0"
   }
 }

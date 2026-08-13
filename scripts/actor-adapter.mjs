@@ -1,279 +1,234 @@
 /**
- * Safely convert actor.items (whether a Foundry Collection, Map, Set, or Array) to a plain Array.
- * @param {object} actor
- * @returns {Array<object>}
+ * Adapter translating Delta Green actor documents into HUD-shaped data.
+ *
+ * Every path here is verified against deltagreen 2.0.1 (SYS-1); the schema file
+ * each one comes from is cited inline. Where an actor type genuinely lacks a
+ * stat, the adapter reports it as unavailable rather than substituting a default
+ * (SYS-5) — a confident wrong number is worse than a blank.
  */
-export function getActorItems(actor) {
-  if (!actor) return [];
-  if (Array.isArray(actor.items)) return actor.items;
-  if (actor.items?.contents && Array.isArray(actor.items.contents)) return actor.items.contents;
-  if (actor.items?.values && typeof actor.items.values === 'function') return Array.from(actor.items.values());
-  if (actor.items && typeof actor.items[Symbol.iterator] === 'function') {
-    const items = Array.from(actor.items);
-    return items.map((entry) => (Array.isArray(entry) && entry.length === 2 ? entry[1] : entry));
-  }
-  if (Array.isArray(actor.weapons)) return actor.weapons;
-  return [];
+
+/** Actor types the HUD supports. `vehicle` has no WP, sanity or skills. */
+export const SUPPORTED_ACTOR_TYPES = ['agent', 'npc', 'unnatural'];
+
+/** An absent numeric stat, reported honestly rather than defaulted. */
+const UNAVAILABLE = Object.freeze({ value: null, max: null, percentage: 0, available: false });
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 /**
- * Get vital statistics for the HUD from actor data.
- * @param {object} actor - The Foundry actor instance or mock object.
- * @returns {object} Standardized vitals object.
+ * Read a `resourceField` block — `{min, value, max}` per
+ * systems/deltagreen/module/data/actor/base/general.js.
+ * @returns {{value: number, max: number, percentage: number, available: true}}
  */
-export function extractVitals(actor) {
-  if (!actor) {
-    return {
-      hp: { value: 0, max: 0, percentage: 0 },
-      wp: { value: 0, max: 0, percentage: 0 },
-      san: { value: 0, max: 0, percentage: 0 },
-      breakingPoint: 0,
-      armor: 0,
-      name: 'No Agent Selected',
-      img: 'icons/svg/mystery-man.svg'
-    };
-  }
-
-  const sys = actor.system || actor.data?.data || {};
-
-  // Resolve HP
-  const hpRaw = sys.hp || sys.attributes?.hp || sys.health || {};
-  const hpVal = Number(hpRaw.value ?? hpRaw.current ?? 10);
-  const hpMax = Number(hpRaw.max ?? 10);
-  const hpPct = hpMax > 0 ? Math.clamped(Math.round((hpVal / hpMax) * 100), 0, 100) : 0;
-
-  // Resolve WP (Willpower)
-  const wpRaw = sys.wp || sys.attributes?.wp || {};
-  const wpVal = Number(wpRaw.value ?? wpRaw.current ?? 10);
-  const wpMax = Number(wpRaw.max ?? 10);
-  const wpPct = wpMax > 0 ? Math.clamped(Math.round((wpVal / wpMax) * 100), 0, 100) : 0;
-
-  // Resolve SAN (Sanity)
-  const sanRaw = sys.san || sys.attributes?.san || {};
-  const sanVal = Number(sanRaw.value ?? sanRaw.current ?? 50);
-  const sanMax = Number(sanRaw.max ?? 99);
-  const sanPct = sanMax > 0 ? Math.clamped(Math.round((sanVal / sanMax) * 100), 0, 100) : 0;
-
-  // Resolve Breaking Point & Armor
-  const bpVal = Number(sys.breakingPoint?.value ?? sys.attributes?.breakingPoint?.value ?? sys.breakingPoint ?? 40);
-  const armorVal = Number(sys.armor?.value ?? sys.attributes?.armor?.value ?? sys.armor ?? 0);
-
-  // Respect system setting for private sanity
-  let keepSanityPrivate = false;
-  let isGM = false;
-  if (typeof game !== 'undefined') {
-    if (game.settings) {
-      try {
-        keepSanityPrivate = Boolean(game.settings.get('deltagreen', 'keepSanityPrivate'));
-      } catch {
-        keepSanityPrivate = false;
-      }
-    }
-    if (game.user) {
-      isGM = Boolean(game.user.isGM);
-    }
-  }
-
-  const hideSanity = keepSanityPrivate && !isGM;
-
+function readResource(raw) {
+  const value = Number(raw.value ?? 0);
+  const max = Number(raw.max ?? 0);
   return {
-    hp: { value: hpVal, max: hpMax, percentage: hpPct },
-    wp: { value: wpVal, max: wpMax, percentage: wpPct },
-    san: {
-      value: hideSanity ? '???' : sanVal,
-      max: hideSanity ? '???' : sanMax,
-      percentage: hideSanity ? 0 : sanPct,
-      isPrivate: hideSanity
-    },
-    breakingPoint: hideSanity ? '???' : bpVal,
-    armor: armorVal,
-    name: actor.name || 'Agent',
-    img: actor.img || 'icons/svg/mystery-man.svg'
+    value,
+    max,
+    percentage: max > 0 ? clamp(Math.round((value / max) * 100), 0, 100) : 0,
+    available: true
   };
 }
 
 /**
- * Standard list of core Delta Green combat and operational skills.
+ * Safely convert actor.items (EmbeddedCollection, Map, Set or Array) to an Array.
+ * @param {object} actor
+ * @returns {Array<object>}
  */
-export const CORE_SKILLS = [
-  { key: 'alertness', label: 'Alertness', defaultVal: 20, category: 'Perception' },
-  { key: 'athletics', label: 'Athletics', defaultVal: 30, category: 'Physical' },
-  { key: 'criminology', label: 'Criminology', defaultVal: 10, category: 'Investigation' },
-  { key: 'dodge', label: 'Dodge', defaultVal: 30, category: 'Combat' },
-  { key: 'drive', label: 'Drive', defaultVal: 20, category: 'Physical' },
-  { key: 'firearms', label: 'Firearms', defaultVal: 20, category: 'Combat' },
-  { key: 'first_aid', label: 'First Aid', defaultVal: 10, category: 'Medical' },
-  { key: 'heavy_weapons', label: 'Heavy Weapons', defaultVal: 10, category: 'Combat' },
-  { key: 'humint', label: 'HUMINT', defaultVal: 10, category: 'Investigation' },
-  { key: 'melee_weapons', label: 'Melee Weapons', defaultVal: 30, category: 'Combat' },
-  { key: 'military_science', label: 'Military Science', defaultVal: 0, category: 'Knowledge' },
-  { key: 'navigate', label: 'Navigate', defaultVal: 10, category: 'Physical' },
-  { key: 'occult', label: 'Occult', defaultVal: 10, category: 'Knowledge' },
-  { key: 'pharmacy', label: 'Pharmacy', defaultVal: 0, category: 'Medical' },
-  { key: 'psychotherapy', label: 'Psychotherapy', defaultVal: 10, category: 'Medical' },
-  { key: 'search', label: 'Search', defaultVal: 20, category: 'Investigation' },
-  { key: 'stealth', label: 'Stealth', defaultVal: 20, category: 'Physical' },
-  { key: 'swim', label: 'Swim', defaultVal: 20, category: 'Physical' },
-  { key: 'unarmed_combat', label: 'Unarmed Combat', defaultVal: 40, category: 'Combat' }
-];
+export function getActorItems(actor) {
+  if (!actor?.items) return [];
+  if (Array.isArray(actor.items)) return actor.items;
+  if (Array.isArray(actor.items.contents)) return actor.items.contents;
+  if (typeof actor.items.values === 'function') return Array.from(actor.items.values());
+  if (typeof actor.items[Symbol.iterator] === 'function') return Array.from(actor.items);
+  return [];
+}
 
 /**
- * Extract formatted list of skills for the Agent.
- * @param {object} actor - The Foundry actor document.
- * @returns {Array<object>} Processed skill objects with value, label, category, and id.
+ * Does this actor type carry a numeric Sanity?
+ *
+ * `agent` and `npc` define sanity as {value, max, currentBreakingPoint}; on
+ * `unnatural` the same key holds only {notes, failedLoss, successLoss}, and
+ * `vehicle` has no sanity at all.
+ * See systems/deltagreen/module/data/actor/{agent,npc,unnatural,vehicle}.js
+ */
+function hasNumericSanity(actor) {
+  return typeof actor?.system?.sanity?.value === 'number';
+}
+
+/** Should Sanity be masked from this user? Honours the system's own setting (UX-5). */
+function shouldHideSanity() {
+  if (globalThis.game?.user?.isGM) return false;
+
+  try {
+    return Boolean(globalThis.game?.settings?.get('deltagreen', 'keepSanityPrivate'));
+  } catch {
+    // The system registers this setting; a world mid-migration may not have it yet.
+    return false;
+  }
+}
+
+/**
+ * Extract vital statistics for the portrait panel.
+ * @param {object|null} actor - A Delta Green actor document.
+ * @returns {object} Vitals, with `available: false` on anything this actor lacks.
+ */
+export function extractVitals(actor) {
+  if (!actor) {
+    return {
+      hp: { ...UNAVAILABLE },
+      wp: { ...UNAVAILABLE },
+      san: { ...UNAVAILABLE },
+      breakingPoint: null,
+      breakingPointHit: false,
+      armor: 0,
+      name: '',
+      img: 'icons/svg/mystery-man.svg',
+      type: null
+    };
+  }
+
+  const sys = actor.system ?? {};
+
+  // health and wp are resourceFields on every actor type except vehicle, which
+  // has health only. base-actor.js / agent.js / vehicle.js
+  const hp = sys.health ? readResource(sys.health) : { ...UNAVAILABLE };
+  const wp = sys.wp ? readResource(sys.wp) : { ...UNAVAILABLE };
+
+  // Armour is derived by the system onto system.health.protection in each type's
+  // prepareDerivedData — read it rather than recomputing from items (SYS-4).
+  const armor = Number(sys.health?.protection ?? 0);
+
+  let san = { ...UNAVAILABLE };
+  let breakingPoint = null;
+  // Derived by the system as `sanity.value <= sanity.currentBreakingPoint`.
+  // See module/data/derived/actor-derived.js prepareBreakingPointHit.
+  let breakingPointHit = false;
+
+  if (hasNumericSanity(actor)) {
+    const hidden = shouldHideSanity();
+    san = hidden
+      ? { value: null, max: null, percentage: 0, available: true, private: true }
+      : { ...readResource(sys.sanity), private: false };
+    breakingPoint = hidden ? null : Number(sys.sanity.currentBreakingPoint);
+    breakingPointHit = hidden ? false : Boolean(sys.sanity.breakingPointHit);
+  }
+
+  return {
+    hp,
+    wp,
+    san,
+    breakingPoint,
+    breakingPointHit,
+    armor,
+    name: actor.name ?? '',
+    img: actor.img ?? 'icons/svg/mystery-man.svg',
+    type: actor.type ?? null
+  };
+}
+
+/**
+ * Extract the actor's skills.
+ *
+ * Keys, labels and values all come from `actor.system.skills`, so the module
+ * carries no skill list of its own and picks up every skill the system defines,
+ * including the unnatural skill set (SYS-2).
+ * See systems/deltagreen/module/data/actor/base/{human,unnatural}-skills.js
+ *
+ * @param {object|null} actor
+ * @returns {Array<{key: string, label: string, value: number, failed: boolean, typed: boolean}>}
  */
 export function extractSkills(actor) {
-  if (!actor) {
-    return CORE_SKILLS.map((skillDef) => ({
-      id: skillDef.key,
-      key: skillDef.key,
-      label: skillDef.label,
-      value: skillDef.defaultVal,
-      category: skillDef.category
-    }));
+  const sys = actor?.system;
+  if (!sys?.skills) return [];
+
+  const skills = Object.entries(sys.skills).map(([key, entry]) => ({
+    key,
+    label: entry?.label ?? key,
+    value: Number(entry?.proficiency ?? 0),
+    failed: Boolean(entry?.failure),
+    typed: false
+  }));
+
+  // typedSkills is an ObjectField of user-defined skills, e.g. Art (Painting).
+  // human-skills.js
+  for (const [key, entry] of Object.entries(sys.typedSkills ?? {})) {
+    skills.push({
+      key,
+      label: entry?.group ? `${entry.label} (${entry.group})` : (entry?.label ?? key),
+      value: Number(entry?.proficiency ?? 0),
+      failed: Boolean(entry?.failure),
+      typed: true
+    });
   }
 
-  const sys = actor.system || actor.data?.data || {};
-  const sysSkills = sys.skills || {};
-  const items = getActorItems(actor);
-  const itemSkills = items.filter((i) => i.type === 'skill');
-
-  const result = CORE_SKILLS.map((skillDef) => {
-    let value = skillDef.defaultVal;
-
-    // Check system.skills object
-    if (sysSkills[skillDef.key] !== undefined) {
-      const entry = sysSkills[skillDef.key];
-      value = typeof entry === 'number' ? entry : Number(entry.value ?? entry.proficiency ?? skillDef.defaultVal);
-    } else {
-      // Check item skills by matching name or key
-      const match = itemSkills.find(
-        (i) => i.name?.toLowerCase().replace(/\s+/g, '_') === skillDef.key || i.name?.toLowerCase() === skillDef.label.toLowerCase()
-      );
-      if (match) {
-        value = Number(match.system?.value ?? match.data?.data?.value ?? skillDef.defaultVal);
-      }
-    }
-
-    return {
-      id: skillDef.key,
-      key: skillDef.key,
-      label: skillDef.label,
-      value: Math.clamped(value, 0, 99),
-      category: skillDef.category
-    };
-  });
-
-  // Include any extra custom skills from items
-  for (const item of itemSkills) {
-    const normName = item.name?.toLowerCase().replace(/\s+/g, '_');
-    if (!result.some((s) => s.key === normName)) {
-      result.push({
-        id: item.id || normName,
-        key: normName,
-        label: item.name,
-        value: Math.clamped(Number(item.system?.value ?? item.data?.data?.value ?? 20), 0, 99),
-        category: 'Custom'
-      });
-    }
-  }
-
-  return result;
+  return skills;
 }
 
 /**
- * Extract weapons and combat equipment from actor.
- * @param {object} actor - The actor document.
- * @returns {Array<object>} Formatted weapon objects for HUD slots.
+ * Extract Special Training entries, each of which rolls against a statistic or skill.
+ * See human-skills.js — `specialTraining: ArrayField({attribute, id, name})`
+ * @param {object|null} actor
+ * @returns {Array<{id: string, name: string, attribute: string}>}
+ */
+export function extractSpecialTraining(actor) {
+  const entries = actor?.system?.specialTraining;
+  if (!Array.isArray(entries)) return [];
+
+  return entries.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    attribute: entry.attribute
+  }));
+}
+
+/**
+ * Extract weapons. Reports the loadout as it is — presenting an empty loadout is
+ * the HUD's decision, not the adapter's (UX-1).
+ *
+ * Item type is `weapon`; there is no `equipment` type (gear and armor are their
+ * own types). See system.json documentTypes and module/data/item/weapon.js
+ *
+ * @param {object|null} actor
+ * @returns {Array<object>} Formatted weapon descriptors.
  */
 export function extractWeapons(actor) {
-  if (!actor) {
-    return [
-      {
-        id: 'unarmed-strike',
-        name: 'Unarmed Strike',
-        img: 'icons/skills/melee/unarmed-punch-fist.webp',
-        skill: 'Unarmed Combat',
-        skillKey: 'unarmed_combat',
-        damage: '1d4 - 1',
-        lethality: 0,
-        equipped: true,
-        ammo: null
-      }
-    ];
-  }
+  return getActorItems(actor)
+    .filter((item) => item.type === 'weapon')
+    .map((item) => {
+      const sys = item.system ?? {};
+      const skillKey = String(sys.skill ?? '').toLowerCase();
 
-  const items = getActorItems(actor);
-  let weaponItems = items.filter((i) => i.type === 'weapon' || i.type === 'equipment');
-
-  // Fallback to actor.weapons getter if present on Delta Green actor
-  if (weaponItems.length === 0 && Array.isArray(actor.weapons) && actor.weapons.length > 0) {
-    weaponItems = actor.weapons;
-  }
-
-  if (weaponItems.length === 0) {
-    return [
-      {
-        id: 'unarmed-strike',
-        name: 'Unarmed Strike',
-        img: 'icons/skills/melee/unarmed-punch-fist.webp',
-        skill: 'Unarmed Combat',
-        skillKey: 'unarmed_combat',
-        damage: '1d4 - 1',
-        lethality: 0,
-        equipped: true,
-        ammo: null
-      }
-    ];
-  }
-
-  return weaponItems.map((item) => {
-    const sys = item.system || item.data?.data || {};
-    const rawSkill = sys.skill || sys.associatedSkill || 'Firearms';
-
-    const skillLabels = {
-      firearms: 'Firearms',
-      heavy_weapons: 'Heavy Weapons',
-      melee_weapons: 'Melee Weapons',
-      unarmed_combat: 'Unarmed Combat',
-      demolitions: 'Demolitions'
-    };
-
-    const skillKey = String(rawSkill).toLowerCase().replace(/\s+/g, '_');
-    const skillName = skillLabels[skillKey] || rawSkill;
-
-    const lethalityVal = Number(sys.lethality?.value ?? sys.lethality ?? 0);
-
-    return {
-      id: item.id || item._id,
-      name: item.name || 'Weapon',
-      img: item.img || 'icons/weapons/guns/pistol-metal.webp',
-      skill: skillName,
-      skillKey,
-      damage: sys.damage || '1d10',
-      lethality: lethalityVal,
-      equipped: Boolean(sys.equipped ?? true),
-      ammo: sys.ammo !== undefined ? { value: Number(sys.ammo.value ?? 0), max: Number(sys.ammo.max ?? 0) } : null
-    };
-  });
+      return {
+        id: item.id ?? item._id,
+        uuid: item.uuid ?? null,
+        name: item.name ?? '',
+        img: item.img ?? 'icons/svg/sword.svg',
+        skillKey,
+        // Resolved against the actor so the label matches the character sheet.
+        skill: actor?.system?.skills?.[skillKey]?.label ?? skillKey,
+        skillModifier: Number(sys.skillModifier ?? 0),
+        damage: sys.damage ?? '',
+        lethality: Number(sys.lethality ?? 0),
+        isLethal: Boolean(sys.isLethal),
+        armorPiercing: Number(sys.armorPiercing ?? 0),
+        // `ammo` is a StringField in the schema, not a {value,max} object.
+        ammo: sys.ammo ?? '',
+        range: sys.range ?? '',
+        killRadius: sys.killRadius ?? '',
+        equipped: Boolean(sys.equipped)
+      };
+    });
 }
 
 /**
- * Extract tactical actions available to Delta Green Agents.
- * @returns {Array<object>} List of tactical actions.
+ * Is this actor eligible for the HUD?
+ * @param {object|null} actor
+ * @returns {boolean}
  */
-export function extractTacticalActions() {
-  return [
-    { id: 'dodge', name: 'Dodge', type: 'reaction', icon: 'fas fa-shield-alt', description: 'Roll Dodge against attack.' },
-    { id: 'aim', name: 'Aim / Called Shot', type: 'action', icon: 'fas fa-crosshair', description: '+20% bonus on next attack roll.' },
-    { id: 'suppress', name: 'Suppressive Fire', type: 'action', icon: 'fas fa-bullseye', description: 'Force targets in cone to duck or take damage.' },
-    { id: 'cover', name: 'Take Cover', type: 'move', icon: 'fas fa-person-shelter', description: 'Gain cover armor rating against ranged attacks.' },
-    { id: 'fight_back', name: 'Fight Back', type: 'reaction', icon: 'fas fa-hand-fist', description: 'Opposed roll against melee attack.' },
-    { id: 'first_aid', name: 'First Aid', type: 'action', icon: 'fas fa-kit-medical', description: 'Treat wounds to heal 1d4 HP.' }
-  ];
-}
-
-// Math.clamped polyfill fallback for non-Foundry Node unit test environment
-if (typeof Math.clamped !== 'function') {
-  Math.clamped = (val, min, max) => Math.min(Math.max(val, min), max);
+export function isSupportedActor(actor) {
+  return SUPPORTED_ACTOR_TYPES.includes(actor?.type);
 }

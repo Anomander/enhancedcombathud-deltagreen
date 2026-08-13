@@ -1,62 +1,35 @@
 /**
  * Settings registration for Delta Green Enhanced Combat HUD.
+ *
+ * Argon Core owns HUD position, theming, visibility and the toggle keybinding
+ * (Shift+A), so this module registers none of those (ARCH-1, ARCH-4). Every
+ * setting here has a reader — a setting with no effect is deleted, not left
+ * registered (UX-2).
  */
 
-export const MODULE_ID = 'delta-green-combat-hud';
+/**
+ * Argon Core discovers its system module by id: it looks up
+ * `enhancedcombathud-${game.system.id}` and shows a permanent error if that
+ * module is not active (CoreHud.js performModuleCheck). The id is therefore
+ * fixed by Argon's convention and must not be renamed.
+ */
+export const MODULE_ID = 'enhancedcombathud-deltagreen';
 
 export function registerSettings() {
-  if (typeof game === 'undefined' || !game.settings) return;
+  if (!globalThis.game?.settings) return;
 
-  // Auto-open HUD on combat start
-  game.settings.register(MODULE_ID, 'autoOpenCombat', {
-    name: 'DG_HUD.Settings.AutoOpenCombatName',
-    hint: 'DG_HUD.Settings.AutoOpenCombatHint',
-    scope: 'client',
-    config: true,
-    type: Boolean,
-    default: true
-  });
-
-  // HUD Dock Position
-  game.settings.register(MODULE_ID, 'hudPosition', {
-    name: 'DG_HUD.Settings.HudPositionName',
-    hint: 'DG_HUD.Settings.HudPositionHint',
-    scope: 'client',
-    config: true,
-    type: String,
-    choices: {
-      bottom: 'DG_HUD.Settings.PosBottom',
-      top: 'DG_HUD.Settings.PosTop'
-    },
-    default: 'bottom'
-  });
-
-  // Aesthetic Theme
-  game.settings.register(MODULE_ID, 'theme', {
-    name: 'DG_HUD.Settings.ThemeName',
-    hint: 'DG_HUD.Settings.ThemeHint',
-    scope: 'client',
-    config: true,
-    type: String,
-    choices: {
-      'dark-green': 'DG_HUD.Settings.ThemeDarkGreen',
-      'classified-amber': 'DG_HUD.Settings.ThemeClassifiedAmber',
-      'monochrome': 'DG_HUD.Settings.ThemeMonochrome'
-    },
-    default: 'dark-green'
-  });
-
-  // Enable Willpower Boost
+  // --- Willpower Boost -------------------------------------------------------
+  // A house rule, not core Delta Green: spend WP for a percentile bonus.
+  // Defaults off so a stock game matches the book.
   game.settings.register(MODULE_ID, 'enableWpBoost', {
     name: 'DG_HUD.Settings.EnableWpBoostName',
     hint: 'DG_HUD.Settings.EnableWpBoostHint',
     scope: 'world',
     config: true,
     type: Boolean,
-    default: true
+    default: false
   });
 
-  // Willpower Boost Cost
   game.settings.register(MODULE_ID, 'wpBoostCost', {
     name: 'DG_HUD.Settings.WpBoostCostName',
     hint: 'DG_HUD.Settings.WpBoostCostHint',
@@ -66,7 +39,6 @@ export function registerSettings() {
     default: 1
   });
 
-  // Willpower Boost Percentage
   game.settings.register(MODULE_ID, 'wpBoostPercent', {
     name: 'DG_HUD.Settings.WpBoostPercentName',
     hint: 'DG_HUD.Settings.WpBoostPercentHint',
@@ -76,7 +48,24 @@ export function registerSettings() {
     default: 20
   });
 
-  // Debug Logging Toggle
+  // --- Damage automation -----------------------------------------------------
+  // Two modes, never three (AUTO-1). Both run the same resolution; the mode
+  // decides only where it commits. Propose is the default because a click by a
+  // human is the safe commit point for a write to someone else's Agent.
+  game.settings.register(MODULE_ID, 'damageAutomation', {
+    name: 'DG_HUD.Settings.DamageAutomationName',
+    hint: 'DG_HUD.Settings.DamageAutomationHint',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: {
+      propose: 'DG_HUD.Settings.DamageAutomationPropose',
+      auto: 'DG_HUD.Settings.DamageAutomationAuto'
+    },
+    default: 'propose'
+  });
+
+  // --- Diagnostics -----------------------------------------------------------
   game.settings.register(MODULE_ID, 'debugMode', {
     name: 'DG_HUD.Settings.DebugModeName',
     hint: 'DG_HUD.Settings.DebugModeHint',
@@ -85,23 +74,31 @@ export function registerSettings() {
     type: Boolean,
     default: false
   });
+}
 
-  // Register Shift+A keybinding
-  if (game.keybindings) {
-    game.keybindings.register(MODULE_ID, 'toggleHud', {
-      name: 'DG_HUD.Keybinds.ToggleHud',
-      editable: [
-        {
-          key: 'KeyA',
-          modifiers: ['Shift']
-        }
-      ],
-      onDown: () => {
-        if (ui.deltaGreenCombatHud) {
-          ui.deltaGreenCombatHud.toggle();
-        }
-        return true;
-      }
-    });
-  }
+/**
+ * How far damage automation goes.
+ * @returns {'propose'|'auto'}
+ */
+export function getDamageAutomation() {
+  const settings = globalThis.game?.settings;
+  if (!settings) return 'propose';
+
+  const mode = settings.get(MODULE_ID, 'damageAutomation');
+  return mode === 'auto' ? 'auto' : 'propose';
+}
+
+/**
+ * Read the Willpower Boost configuration.
+ * @returns {{enabled: boolean, cost: number, percent: number}}
+ */
+export function getWpBoostSettings() {
+  const settings = globalThis.game?.settings;
+  if (!settings) return { enabled: false, cost: 1, percent: 20 };
+
+  return {
+    enabled: Boolean(settings.get(MODULE_ID, 'enableWpBoost')),
+    cost: Number(settings.get(MODULE_ID, 'wpBoostCost')),
+    percent: Number(settings.get(MODULE_ID, 'wpBoostPercent'))
+  };
 }

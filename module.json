@@ -1,10 +1,10 @@
 {
-  "id": "delta-green-combat-hud",
-  "title": "Delta Green Enhanced Combat HUD",
+  "id": "enhancedcombathud-deltagreen",
+  "title": "Argon - Combat HUD (DELTAGREEN)",
   "description": "<p>An Enhanced Combat HUD interface tailored specifically for Delta Green in Foundry VTT. Features agent vitals, weapon sets, combat skills, sanity/willpower actions, movement tracking, and target selection.</p>",
   "version": "1.0.0",
   "compatibility": {
-    "minimum": "11",
+    "minimum": "14",
     "verified": "14",
     "maximum": "14"
   },
@@ -44,7 +44,17 @@
         "type": "system",
         "manifest": "https://raw.githubusercontent.com/deltagreen-foundryvtt/delta-green-foundry-vtt-system/main/system.json",
         "compatibility": {
-          "minimum": "1.0.0"
+          "minimum": "2.0.0"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "enhancedcombathud",
+        "type": "module",
+        "manifest": "https://github.com/theripper93/enhancedcombathud/releases/latest/download/module.json",
+        "compatibility": {
+          "minimum": "5.0.0"
         }
       }
     ]

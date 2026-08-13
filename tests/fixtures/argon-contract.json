@@ -1,0 +1,248 @@
+{
+  "argon": {
+    "id": "enhancedcombathud",
+    "version": "5.0.1"
+  },
+  "templateResolution": "Object.getPrototypeOf(this.constructor).name",
+  "partials": [
+    "AccordionPanel",
+    "AccordionPanelCategory",
+    "ActionButton",
+    "ActionPanel",
+    "ButtonHud",
+    "ButtonPanel",
+    "ButtonPanelButton",
+    "DrawerButton",
+    "DrawerPanel",
+    "Effect",
+    "ItemButton",
+    "MacroButton",
+    "MovementHud",
+    "PortraitPanel",
+    "SplitButton",
+    "Tooltip",
+    "WeaponSets"
+  ],
+  "classes": {
+    "CoreHud": {
+      "parent": "HandlebarsApplication",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": [
+        "enabled"
+      ]
+    },
+    "EchThemeOptions": {
+      "parent": "HandlebarsApplication",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "DrawerButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "DrawerPanel": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "ActionPanel": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_getButtons"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "ButtonHud": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_getButtons"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "AccordionPanel": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [
+        {
+          "name": "accordionPanelCategories",
+          "default": null
+        },
+        {
+          "name": "id",
+          "default": null
+        }
+      ],
+      "accessorPairs": []
+    },
+    "AccordionPanelCategory": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [
+        {
+          "name": "label",
+          "default": null
+        },
+        {
+          "name": "uses",
+          "default": "{"
+        }
+      ],
+      "accessorPairs": []
+    },
+    "ButtonPanel": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [
+        {
+          "name": "buttons",
+          "default": null
+        },
+        {
+          "name": "id",
+          "default": null
+        }
+      ],
+      "accessorPairs": []
+    },
+    "ActionButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_onLeftClick"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "ButtonPanelButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_getPanel"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "ItemButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_onLeftClick"
+      ],
+      "constructorOptions": [
+        {
+          "name": "item",
+          "default": null
+        },
+        {
+          "name": "isWeaponSet",
+          "default": "false"
+        },
+        {
+          "name": "isPrimary",
+          "default": "false"
+        },
+        {
+          "name": "inActionPanel",
+          "default": "undefined"
+        }
+      ],
+      "accessorPairs": []
+    },
+    "MacroButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [
+        {
+          "name": "macro",
+          "default": null
+        },
+        {
+          "name": "inActionPanel",
+          "default": "undefined"
+        }
+      ],
+      "accessorPairs": []
+    },
+    "SplitButton": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "MovementHud": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": [
+        "movementUsed"
+      ]
+    },
+    "WeaponSets": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_onSetChange"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "Effect": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_onLeftClick"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "PortraitPanel": {
+      "parent": "ArgonComponent",
+      "abstractMethods": [
+        "_onDeathSave"
+      ],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "ArgonPortraitConfig": {
+      "parent": "HandlebarsApplication",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "MacroPanel": {
+      "parent": "ActionPanel",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "MacroPanelButton": {
+      "parent": "ButtonPanelButton",
+      "abstractMethods": [],
+      "constructorOptions": [
+        {
+          "name": "color",
+          "default": null
+        },
+        {
+          "name": "icon",
+          "default": null
+        }
+      ],
+      "accessorPairs": []
+    },
+    "PassTurnPanel": {
+      "parent": "ActionPanel",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    },
+    "PassTurnButton": {
+      "parent": "ActionButton",
+      "abstractMethods": [],
+      "constructorOptions": [],
+      "accessorPairs": []
+    }
+  }
+}

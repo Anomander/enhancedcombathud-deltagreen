@@ -1,6 +1,25 @@
-Delta Green Enhanced Combat HUD v1.0.0
+Delta Green Enhanced Combat HUD
 
-- Complete Enhanced Combat HUD for Delta Green in Foundry VTT.
-- Real-time Vitals dock: HP, WP, SAN, Breaking Point, Armor.
-- Weapon slots, lethality rolls, skill grid, and Willpower boost actions.
-- Target selection overlay and turn management.
+A combat surface for Delta Green that puts everything an Agent needs during a
+firefight one click away, and applies the results -- without changing how Delta
+Green's dice work.
+
+Requires Argon - Combat HUD (CORE). This module contributes Delta Green
+components to Argon and does not render a HUD of its own.
+
+- Portrait and vitals: HP, WP, Sanity, Breaking Point and armour. Sanity honours
+  the system's Keep Sanity Private setting.
+- Attacks: every equipped weapon, with damage, Lethality, armour piercing, range
+  and ammunition. Right-click asks whether to roll damage or Lethality, using the
+  system's own dialog.
+- Skills: every skill the system defines, including typed skills and Special
+  Training, grouped by trained and untrained.
+- Reactions: Dodge and Fight Back, shown only when the Agent has the skill.
+- Sanity tests, and an optional Willpower Boost house rule (off by default).
+- Agent Record drawer: statistics, Bonds and Motivations.
+- Damage automation: after a damage or Lethality roll against a target, the
+  result is resolved through armour and offered in chat with an Apply button.
+  Choose Propose or Auto-apply in the module settings.
+
+Every roll goes through the Delta Green system unchanged, so modifier dialogs,
+chat cards and Dice So Nice behave exactly as they do on the character sheet.

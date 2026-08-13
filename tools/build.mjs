@@ -7,7 +7,6 @@
  */
 
 import * as esbuild from 'esbuild';
-import Handlebars from 'handlebars';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +31,17 @@ function write(file, data) {
   fs.writeFileSync(file, data);
 }
 
+/** Every .mjs under scripts/, as repo-relative paths. */
+function sourceModules(dir = '') {
+  return fs.readdirSync(src('scripts', dir), { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? sourceModules(path.join(dir, entry.name))
+      : entry.name.endsWith('.mjs')
+      ? [path.posix.join('scripts', dir, entry.name)]
+      : []
+  );
+}
+
 async function buildScripts() {
   const result = await esbuild.build({
     entryPoints: [src('scripts/delta-green-combat-hud.mjs')],
@@ -43,15 +53,14 @@ async function buildScripts() {
     keepNames: true,
     legalComments: 'none',
     sourcemap: 'external',
-    metafile: true
+    metafile: true,
+    // The Delta Green system's public roll API is served by Foundry at runtime
+    // and must not be resolved at bundle time (SYS-4).
+    external: ['/systems/*']
   });
 
   const bundled = new Set(Object.keys(result.metafile.inputs));
-  const orphans = fs
-    .readdirSync(src('scripts'))
-    .filter((f) => f.endsWith('.mjs'))
-    .map((f) => `scripts/${f}`)
-    .filter((f) => !bundled.has(f));
+  const orphans = sourceModules().filter((f) => !bundled.has(f));
 
   if (orphans.length) {
     throw new Error(
@@ -77,38 +86,15 @@ function buildLang() {
   }
 }
 
-function buildTemplates() {
-  const walk = (dir = '') =>
-    fs.readdirSync(src('templates', dir), { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory()
-        ? walk(path.join(dir, entry.name))
-        : entry.name.endsWith('.hbs')
-        ? [path.join(dir, entry.name)]
-        : []
-    );
-
-  for (const file of walk()) {
-    const minified = fs
-      .readFileSync(src('templates', file), 'utf8')
-      .replace(/\{\{!--[\s\S]*?--\}\}/g, '')
-      .replace(/\{\{![^}]*\}\}/g, '')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .join('\n');
-
-    try {
-      Handlebars.precompile(minified);
-    } catch (error) {
-      throw new Error(`templates/${file} does not compile after minification: ${error.message}`);
-    }
-
-    write(out('templates', file), minified);
-  }
-}
-
 function verifyManifest() {
   const manifest = JSON.parse(fs.readFileSync(src('module.json'), 'utf8'));
+
+  // This module contributes components to Argon Core and cannot run without it.
+  const requires = manifest.relationships?.requires ?? [];
+  if (!requires.some((entry) => entry.id === 'enhancedcombathud')) {
+    throw new Error('module.json must declare enhancedcombathud in relationships.requires');
+  }
+
   const declared = [
     ...(manifest.esmodules || []),
     ...(manifest.scripts || []),
@@ -133,8 +119,7 @@ function report() {
       .readdirSync(dir, { withFileTypes: true })
       .reduce((sum, e) => sum + (e.isDirectory() ? treeSize(path.join(dir, e.name)) : size(path.join(dir, e.name))), 0);
 
-  const sourceSize =
-    treeSize(src('scripts')) + treeSize(src('styles')) + treeSize(src('templates')) + treeSize(src('lang'));
+  const sourceSize = treeSize(src('scripts')) + treeSize(src('styles')) + treeSize(src('lang'));
   const mapSize = fs.existsSync(out('scripts/delta-green-combat-hud.mjs.map'))
     ? size(out('scripts/delta-green-combat-hud.mjs.map'))
     : 0;
@@ -151,7 +136,6 @@ async function main() {
   await buildScripts();
   await buildStyles();
   buildLang();
-  buildTemplates();
   for (const file of VERBATIM) write(out(file), fs.readFileSync(src(file)));
 
   verifyManifest();

@@ -1,148 +1,187 @@
+/**
+ * Actor adapter, tested against fixtures derived from the real system schema.
+ *
+ * The previous version of this suite asserted the adapter agreed with mocks that
+ * were invented to match it (`system.san`, `system.breakingPoint`, `system.armor`,
+ * `skills.firearms.value`). None of those paths exist in deltagreen 2.0.1, so the
+ * suite was green while Sanity, Breaking Point and Armor were constants on every
+ * real Agent. See TEST-1.
+ */
+
 import { describe, it, expect } from 'vitest';
-import { extractVitals, extractSkills, extractWeapons, extractTacticalActions } from '../scripts/actor-adapter.mjs';
+import { extractVitals, extractSkills, extractWeapons, getActorItems } from '../scripts/actor-adapter.mjs';
+import { makeAgent, makeNpc, makeUnnatural, makeVehicle, makeWeapon, makeArmor, makeGear, SCHEMA } from './fixtures/dg-actors.mjs';
 
-describe('Actor Adapter Verification', () => {
-  it('returns default safe vitals when actor is null', () => {
-    const vitals = extractVitals(null);
-    expect(vitals.name).toBe('No Agent Selected');
-    expect(vitals.hp.value).toBe(0);
-    expect(vitals.wp.value).toBe(0);
-    expect(vitals.san.value).toBe(0);
+describe('Vitals — Agent', () => {
+  it('reads HP from system.health', () => {
+    const vitals = extractVitals(makeAgent({ hp: [9, 11] }));
+    expect(vitals.hp).toMatchObject({ value: 9, max: 11 });
+    expect(vitals.hp.percentage).toBe(82);
   });
 
-  it('correctly extracts Delta Green Agent vitals', () => {
-    const mockActor = {
-      name: 'Agent Alphonse',
-      img: 'tokens/alphonse.webp',
-      system: {
-        hp: { value: 11, max: 12 },
-        wp: { value: 8, max: 10 },
-        san: { value: 45, max: 80 },
-        breakingPoint: { value: 38 },
-        armor: { value: 3 }
-      }
-    };
+  it('reads WP from system.wp', () => {
+    const vitals = extractVitals(makeAgent({ wp: [7, 12] }));
+    expect(vitals.wp).toMatchObject({ value: 7, max: 12 });
+  });
 
-    const vitals = extractVitals(mockActor);
-    expect(vitals.name).toBe('Agent Alphonse');
-    expect(vitals.hp.value).toBe(11);
-    expect(vitals.hp.max).toBe(12);
-    expect(vitals.hp.percentage).toBe(92);
-    expect(vitals.wp.value).toBe(8);
-    expect(vitals.san.value).toBe(45);
+  it('reads Sanity from system.sanity, not system.san', () => {
+    const vitals = extractVitals(makeAgent({ sanity: 44, sanityMax: 99 }));
+    expect(vitals.san).toMatchObject({ value: 44, max: 99 });
+  });
+
+  it('reads Breaking Point from system.sanity.currentBreakingPoint', () => {
+    const vitals = extractVitals(makeAgent({ breakingPoint: 38 }));
     expect(vitals.breakingPoint).toBe(38);
-    expect(vitals.armor).toBe(3);
   });
 
-  it('extracts skills including default Delta Green combat skills', () => {
-    const mockActor = {
-      system: {
-        skills: {
-          firearms: { value: 60 },
-          unarmed_combat: { value: 50 }
-        }
-      }
-    };
-
-    const skills = extractSkills(mockActor);
-    expect(skills.length).toBeGreaterThan(10);
-    const firearms = skills.find((s) => s.key === 'firearms');
-    expect(firearms.value).toBe(60);
-    const athletics = skills.find((s) => s.key === 'athletics');
-    expect(athletics.value).toBe(30); // Default value fallback
+  it('surfaces the system-derived breaking point flag', () => {
+    expect(extractVitals(makeAgent({ sanity: 44, breakingPoint: 38 })).breakingPointHit).toBe(false);
+    expect(extractVitals(makeAgent({ sanity: 30, breakingPoint: 38 })).breakingPointHit).toBe(true);
   });
 
-  it('extracts weapon slots with fallback for unarmed strike', () => {
-    const mockActorNoWeapons = { items: [] };
-    const weapons = extractWeapons(mockActorNoWeapons);
-    expect(weapons.length).toBe(1);
-    expect(weapons[0].name).toBe('Unarmed Strike');
+  it('reads armour from the system-derived system.health.protection', () => {
+    const agent = makeAgent({ items: [makeArmor({ protection: 3 })] });
+    expect(extractVitals(agent).armor).toBe(3);
+  });
 
-    const mockActorWithGun = {
+  it('sums only equipped armour', () => {
+    const agent = makeAgent({
       items: [
-        {
-          id: 'w1',
-          name: 'SIG Sauer P226',
-          type: 'weapon',
-          system: {
-            skill: 'Firearms',
-            damage: '1d10',
-            lethality: 0,
-            ammo: { value: 15, max: 15 }
-          }
-        }
+        makeArmor({ id: 'a1', protection: 3, equipped: true }),
+        makeArmor({ id: 'a2', protection: 5, equipped: false })
       ]
-    };
-
-    const extractedGuns = extractWeapons(mockActorWithGun);
-    expect(extractedGuns.length).toBe(1);
-    expect(extractedGuns[0].name).toBe('SIG Sauer P226');
-    expect(extractedGuns[0].damage).toBe('1d10');
+    });
+    expect(extractVitals(agent).armor).toBe(3);
   });
 
-  it('extracts weapons when actor.items is a Map/Collection or actor.weapons getter is used', () => {
-    const mockMapItems = new Map([
-      [
-        'w1',
-        {
-          id: 'w1',
-          name: 'Submachine Gun (SMG)',
-          type: 'weapon',
-          system: { skill: 'firearms', damage: '1D10', lethality: 10 }
-        }
-      ],
-      [
-        'w2',
-        {
-          id: 'w2',
-          name: 'Rifle (Light)',
-          type: 'weapon',
-          system: { skill: 'firearms', damage: '1D12', lethality: 15 }
-        }
-      ]
-    ]);
+  it('reports every stat as unavailable when there is no actor', () => {
+    // No actor means no HP — reporting 0 would be a fabricated value (SYS-5).
+    const vitals = extractVitals(null);
+    for (const stat of ['hp', 'wp', 'san']) {
+      expect(vitals[stat]).toMatchObject({ value: null, available: false });
+    }
+    expect(vitals.breakingPoint).toBeNull();
+  });
+});
 
-    const mockActorMap = { items: mockMapItems };
-    const weapons = extractWeapons(mockActorMap);
-    expect(weapons.length).toBe(2);
-    expect(weapons[0].name).toBe('Submachine Gun (SMG)');
-    expect(weapons[1].name).toBe('Rifle (Light)');
+describe('Vitals — actor types other than Agent', () => {
+  it('reads sanity and breaking point for an NPC', () => {
+    const vitals = extractVitals(makeNpc({ sanity: 50, breakingPoint: 40 }));
+    expect(vitals.san).toMatchObject({ value: 50, available: true });
+    expect(vitals.breakingPoint).toBe(40);
   });
 
-  it('returns tactical actions list', () => {
-    const tactics = extractTacticalActions();
-    expect(tactics.length).toBeGreaterThanOrEqual(5);
-    expect(tactics.some((t) => t.id === 'dodge')).toBe(true);
-    expect(tactics.some((t) => t.id === 'aim')).toBe(true);
+  it('omits sanity for an Unnatural rather than substituting a default', () => {
+    // system.sanity on `unnatural` holds only {notes, failedLoss, successLoss}.
+    const vitals = extractVitals(makeUnnatural());
+    expect(vitals.san.available).toBe(false);
+    expect(vitals.san.value).toBeNull();
+    expect(vitals.breakingPoint).toBeNull();
   });
 
-  it('masks SAN and BP values to ??? when keepSanityPrivate setting is active and user is player', () => {
-    const mockActor = {
-      name: 'Agent Alphonse',
-      system: {
-        hp: { value: 10, max: 10 },
-        wp: { value: 10, max: 10 },
-        san: { value: 45, max: 80 },
-        breakingPoint: { value: 38 }
-      }
+  it('still reads HP and WP for an Unnatural', () => {
+    const vitals = extractVitals(makeUnnatural({ hp: [30, 30], wp: [20, 20] }));
+    expect(vitals.hp).toMatchObject({ value: 30, max: 30 });
+    expect(vitals.wp).toMatchObject({ value: 20, max: 20 });
+  });
+
+  it('omits sanity, WP and skills for a Vehicle', () => {
+    const vitals = extractVitals(makeVehicle({ hp: [15, 15] }));
+    expect(vitals.hp).toMatchObject({ value: 15, max: 15 });
+    expect(vitals.san.available).toBe(false);
+    expect(vitals.wp.available).toBe(false);
+  });
+});
+
+describe('Skills', () => {
+  it('returns every skill the system defines, not a hardcoded subset', () => {
+    const skills = extractSkills(makeAgent());
+    expect(skills).toHaveLength(SCHEMA.skills.human.length);
+    expect(skills.map((s) => s.key).sort()).toEqual(SCHEMA.skills.human);
+  });
+
+  it('reads proficiency, not value', () => {
+    const skills = extractSkills(makeAgent({ proficiencies: { firearms: 60 } }));
+    expect(skills.find((s) => s.key === 'firearms').value).toBe(60);
+  });
+
+  it('takes labels from the actor rather than a duplicated table', () => {
+    const skills = extractSkills(makeAgent());
+    expect(skills.find((s) => s.key === 'humint').label).toBe('Humint');
+  });
+
+  it('includes skills the old hardcoded list omitted', () => {
+    const keys = extractSkills(makeAgent()).map((s) => s.key);
+    for (const key of ['persuade', 'ride', 'sigint', 'surgery', 'survival', 'forensics', 'law']) {
+      expect(keys).toContain(key);
+    }
+  });
+
+  it('does not invent skills the system has no key for', () => {
+    const keys = extractSkills(makeAgent()).map((s) => s.key);
+    expect(keys).not.toContain('military_science');
+  });
+
+  it('includes typed skills defined on the actor', () => {
+    const agent = makeAgent();
+    agent.system.typedSkills = {
+      tsk1: { label: 'Art', group: 'Painting', proficiency: 40, failure: false }
     };
+    const typed = extractSkills(agent).find((s) => s.key === 'tsk1');
+    expect(typed).toMatchObject({ value: 40, typed: true });
+    expect(typed.label).toContain('Art');
+  });
 
-    globalThis.game = {
-      settings: { get: (module, setting) => setting === 'keepSanityPrivate' },
-      user: { isGM: false }
-    };
+  it('reads the unnatural skill set for an Unnatural actor', () => {
+    const skills = extractSkills(makeUnnatural());
+    expect(skills.find((s) => s.key === 'alertness').value).toBe(50);
+  });
 
-    const vitals = extractVitals(mockActor);
-    expect(vitals.san.value).toBe('???');
-    expect(vitals.san.max).toBe('???');
-    expect(vitals.breakingPoint).toBe('???');
-    expect(vitals.san.isPrivate).toBe(true);
+  it('returns nothing for an actor type with no skills', () => {
+    expect(extractSkills(makeVehicle())).toEqual([]);
+  });
+});
 
-    // GM should still see actual values
-    globalThis.game.user.isGM = true;
-    const gmVitals = extractVitals(mockActor);
-    expect(gmVitals.san.value).toBe(45);
-    expect(gmVitals.breakingPoint).toBe(38);
-    expect(gmVitals.san.isPrivate).toBe(false);
+describe('Weapons', () => {
+  it('extracts weapon items from a Foundry EmbeddedCollection', () => {
+    const agent = makeAgent({ items: [makeWeapon({ name: 'M4 Carbine' })] });
+    const weapons = extractWeapons(agent);
+    expect(weapons).toHaveLength(1);
+    expect(weapons[0]).toMatchObject({ name: 'M4 Carbine', skillKey: 'firearms', damage: '1D12' });
+  });
+
+  it('ignores armour and gear', () => {
+    const agent = makeAgent({ items: [makeWeapon(), makeArmor(), makeGear()] });
+    expect(extractWeapons(agent)).toHaveLength(1);
+  });
+
+  it('reads ammo as the string the schema declares', () => {
+    const agent = makeAgent({ items: [makeWeapon({ ammo: '30' })] });
+    expect(extractWeapons(agent)[0].ammo).toBe('30');
+  });
+
+  it('carries lethality through for lethal weapons', () => {
+    const agent = makeAgent({ items: [makeWeapon({ lethality: 20, isLethal: true })] });
+    expect(extractWeapons(agent)[0]).toMatchObject({ lethality: 20, isLethal: true });
+  });
+
+  it('reports no weapons rather than fabricating an unarmed strike', () => {
+    // The HUD decides how to present an empty loadout; the adapter reports facts.
+    expect(extractWeapons(makeAgent({ items: [] }))).toEqual([]);
+  });
+});
+
+describe('getActorItems', () => {
+  it('unwraps an EmbeddedCollection', () => {
+    const agent = makeAgent({ items: [makeWeapon(), makeArmor()] });
+    expect(getActorItems(agent)).toHaveLength(2);
+  });
+
+  it('accepts a plain array', () => {
+    expect(getActorItems({ items: [makeWeapon()] })).toHaveLength(1);
+  });
+
+  it('returns an empty array for a null actor', () => {
+    expect(getActorItems(null)).toEqual([]);
   });
 });

@@ -11,14 +11,12 @@ export class Logger {
    * @returns {boolean}
    */
   static isDebugEnabled() {
-    if (typeof game !== 'undefined' && game.settings) {
-      try {
-        return Boolean(game.settings.get(MODULE_ID, 'debugMode'));
-      } catch {
-        return false;
-      }
+    try {
+      // Logging can happen during init, before the setting is registered.
+      return Boolean(globalThis.game?.settings?.get(MODULE_ID, 'debugMode'));
+    } catch {
+      return false;
     }
-    return false;
   }
 
   /**

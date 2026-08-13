@@ -6,14 +6,40 @@ describe('module.json Manifest Verification', () => {
   const manifestPath = path.resolve(process.cwd(), 'module.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-  it('has required id and title', () => {
-    expect(manifest.id).toBe('delta-green-combat-hud');
-    expect(manifest.title).toBe('Delta Green Enhanced Combat HUD');
+  it('uses the id Argon Core discovers system modules by', () => {
+    // Argon looks up `enhancedcombathud-${game.system.id}` and shows a permanent
+    // error if it is not active. See CoreHud.js performModuleCheck.
+    expect(manifest.id).toBe('enhancedcombathud-deltagreen');
   });
 
-  it('declares compatibility range for Foundry v11-v14', () => {
-    expect(manifest.compatibility.minimum).toBe('11');
-    expect(['12', '14']).toContain(manifest.compatibility.verified);
+  it('keeps the module id and the settings namespace in step', async () => {
+    // Settings are namespaced by module id; a mismatch silently loses them all.
+    const { MODULE_ID } = await import('../scripts/settings.mjs');
+    expect(MODULE_ID).toBe(manifest.id);
+  });
+
+  it('has a title', () => {
+    expect(manifest.title).toBeTruthy();
+  });
+
+  it('requires a Foundry version Argon Core supports', () => {
+    // Argon Core 5.x declares minimum v14, so this module cannot claim less.
+    expect(Number(manifest.compatibility.minimum)).toBeGreaterThanOrEqual(14);
+    expect(Number(manifest.compatibility.verified)).toBeGreaterThanOrEqual(14);
+  });
+
+  it('requires Argon Core, without which it contributes nothing', () => {
+    const requires = manifest.relationships?.requires ?? [];
+    const argon = requires.find((entry) => entry.id === 'enhancedcombathud');
+
+    expect(argon, 'enhancedcombathud must be in relationships.requires').toBeDefined();
+    expect(argon.type).toBe('module');
+    expect(Number.parseInt(argon.compatibility.minimum, 10)).toBeGreaterThanOrEqual(5);
+  });
+
+  it('requires a Delta Green system version with the 2.x data model', () => {
+    const system = manifest.relationships.systems.find((entry) => entry.id === 'deltagreen');
+    expect(Number.parseInt(system.compatibility.minimum, 10)).toBeGreaterThanOrEqual(2);
   });
 
   it('declares entrypoint ES module script that exists', () => {
