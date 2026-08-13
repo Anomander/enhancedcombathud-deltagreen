@@ -22,6 +22,8 @@
   "DG_HUD.Skills.Typed": "Typed Skills",
   "DG_HUD.Skills.SpecialTraining": "Special Training",
   "DG_HUD.Skills.FlaggedForImprovement": "Flagged for improvement.",
+  "DG_HUD.Skills.SearchPlaceholder": "Filter skills…",
+  "DG_HUD.Skills.SearchLabel": "Filter skills",
 
   "DG_HUD.Actions.FightBack": "Fight Back",
   "DG_HUD.Actions.RollSanity": "Sanity",
@@ -91,6 +93,9 @@
   "DG_HUD.Settings.DamageAutomationHint": "What happens after a damage or Lethality roll against a target.",
   "DG_HUD.Settings.DamageAutomationPropose": "Propose — offer the result, a click applies it",
   "DG_HUD.Settings.DamageAutomationAuto": "Auto-apply — apply it immediately where permitted",
+  "DG_HUD.Settings.ShowUntrainedSkillsName": "Show untrained skills",
+  "DG_HUD.Settings.ShowUntrainedSkillsHint": "List skills the Agent has no training in. Off by default — they stay rollable from the character sheet either way.",
+
   "DG_HUD.Settings.DebugModeName": "Debug logging",
   "DG_HUD.Settings.DebugModeHint": "Write detailed HUD activity to the browser console."
 }

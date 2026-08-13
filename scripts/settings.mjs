@@ -7,6 +7,8 @@
  * registered (UX-2).
  */
 
+import { getHost } from './host.mjs';
+
 /**
  * Argon Core discovers its system module by id: it looks up
  * `enhancedcombathud-${game.system.id}` and shows a permanent error if that
@@ -65,6 +67,25 @@ export function registerSettings() {
     default: 'propose'
   });
 
+  // --- Skill list ------------------------------------------------------------
+  // Untrained skills are rollable, so they are never removed from the game —
+  // only from the list, which is the thing being read under fire. Off by
+  // default: the panel opens on what the Agent can actually do.
+  //
+  // Client scope, because this changes what one player reads and no rule (PAR-2);
+  // one player's shorter list costs the rest of the table nothing.
+  game.settings.register(MODULE_ID, 'showUntrainedSkills', {
+    name: 'DG_HUD.Settings.ShowUntrainedSkillsName',
+    hint: 'DG_HUD.Settings.ShowUntrainedSkillsHint',
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: false,
+    // The list is built when the HUD renders, so it has to be rebuilt here or
+    // the setting appears not to work until the next bind.
+    onChange: () => getHost().refresh()
+  });
+
   // --- Diagnostics -----------------------------------------------------------
   game.settings.register(MODULE_ID, 'debugMode', {
     name: 'DG_HUD.Settings.DebugModeName',
@@ -86,6 +107,17 @@ export function getDamageAutomation() {
 
   const mode = settings.get(MODULE_ID, 'damageAutomation');
   return mode === 'auto' ? 'auto' : 'propose';
+}
+
+/**
+ * Does the skill list include skills the Agent has no training in?
+ * @returns {boolean}
+ */
+export function getShowUntrainedSkills() {
+  const settings = globalThis.game?.settings;
+  if (!settings) return false;
+
+  return Boolean(settings.get(MODULE_ID, 'showUntrainedSkills'));
 }
 
 /**

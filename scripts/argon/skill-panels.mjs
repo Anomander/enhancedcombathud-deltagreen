@@ -8,7 +8,8 @@
 
 import { extractSkills, extractSpecialTraining, extractVitals } from '../actor-adapter.mjs';
 import { rollService } from '../roll-service.mjs';
-import { getWpBoostSettings } from '../settings.mjs';
+import { getShowUntrainedSkills, getWpBoostSettings } from '../settings.mjs';
+import { matchesSkill, monogram } from '../skill-display.mjs';
 
 /**
  * Argon renders a button's `icon` as a CSS background-image, so these are image
@@ -19,9 +20,27 @@ const ICONS = {
   fightBack: 'icons/svg/combat.svg',
   skills: 'icons/svg/book.svg',
   sanity: 'icons/svg/terror.svg',
-  willpower: 'icons/svg/lightning.svg',
-  improvement: 'icons/svg/upgrade.svg'
+  willpower: 'icons/svg/lightning.svg'
 };
+
+/**
+ * A skill has no art, so its tile carries its own initials instead — a
+ * silhouette to aim at rather than one more identical slab. Built as an
+ * element, never as markup (ARCH-3).
+ * @param {HTMLElement} element The button's root.
+ * @param {string} label The skill's own name.
+ */
+function addMonogram(element, label) {
+  // Argon paints `icon` unconditionally, so an empty one leaves `url("")` behind
+  // — a request for the page itself. A tile with no art asks for nothing.
+  element.style.backgroundImage = 'none';
+
+  const mark = document.createElement('span');
+  mark.classList.add('dg-skill-monogram');
+  mark.setAttribute('aria-hidden', 'true'); // the label beneath it already says this
+  mark.textContent = monogram(label);
+  element.prepend(mark);
+}
 
 /** Delta Green names two reactions; each is only offered if the actor has the skill. */
 const REACTIONS = [
@@ -30,6 +49,22 @@ const REACTIONS = [
 ];
 
 export function createSkillPanels(ARGON) {
+  /**
+   * The skills the list will show, given the setting.
+   *
+   * Untrained means a proficiency of 0 — the skill is still rollable from the
+   * sheet, and the HUD refuses nothing (PAR-4); it is only left out of a list a
+   * player reads mid-firefight. Typed skills and Special Training are entries
+   * the player wrote down deliberately, so they are never hidden.
+   * @param {object|null} actor
+   */
+  function listedSkills(actor) {
+    const skills = extractSkills(actor);
+    if (getShowUntrainedSkills()) return skills;
+
+    return skills.filter((skill) => skill.typed || skill.value > 0);
+  }
+
   /** A single skill roll. */
   class DGSkillButton extends ARGON.MAIN.BUTTONS.ActionButton {
     constructor(skill) {
@@ -37,12 +72,22 @@ export function createSkillPanels(ARGON) {
       this.skill = skill;
     }
 
+    get classes() {
+      return [...super.classes, 'dg-skill-button'];
+    }
+
     get label() {
       return `${this.skill.label} ${this.skill.value}%`;
     }
 
-    get icon() {
-      return this.skill.failed ? ICONS.improvement : '';
+    /** The text the filter box matches against — the skill's name, not its rating. */
+    get searchText() {
+      return this.skill.label;
+    }
+
+    /** Argon only renders a tooltip for a component that declares one. */
+    get hasTooltip() {
+      return true;
     }
 
     async getTooltipData() {
@@ -51,6 +96,17 @@ export function createSkillPanels(ARGON) {
         subtitle: `${this.skill.value}%`,
         description: this.skill.failed ? game.i18n.localize('DG_HUD.Skills.FlaggedForImprovement') : ''
       };
+    }
+
+    /**
+     * A skill flagged for improvement is marked in the corner rather than by
+     * taking over the tile as a background image, so the monogram survives and
+     * the two facts stay separately readable.
+     */
+    async _renderInner() {
+      await super._renderInner();
+      addMonogram(this.element, this.skill.label);
+      this.element.classList.toggle('dg-skill-flagged', this.skill.failed);
     }
 
     async _onLeftClick(event) {
@@ -70,8 +126,21 @@ export function createSkillPanels(ARGON) {
       this.training = training;
     }
 
+    get classes() {
+      return [...super.classes, 'dg-skill-button'];
+    }
+
     get label() {
       return this.training.name;
+    }
+
+    get searchText() {
+      return this.training.name;
+    }
+
+    async _renderInner() {
+      await super._renderInner();
+      addMonogram(this.element, this.training.name);
     }
 
     async _onLeftClick(event) {
@@ -153,6 +222,158 @@ export function createSkillPanels(ARGON) {
   }
 
   /**
+   * The skill list, with a filter box over it.
+   *
+   * Forty-odd skills in four categories is a lot to read under fire, so the
+   * list can be narrowed by typing. Extends AccordionPanel directly, one level
+   * below the Argon base class, so its template still resolves to
+   * `AccordionPanel.hbs` (ARCH-7).
+   */
+  class DGSkillAccordionPanel extends ARGON.MAIN.BUTTON_PANELS.ACCORDION.AccordionPanel {
+    get classes() {
+      return [...super.classes, 'dg-skill-search-panel'];
+    }
+
+    /** Argon stores the categories it was constructed with here. */
+    get categories() {
+      return this._subPanels ?? [];
+    }
+
+    get searchInput() {
+      return this.element.querySelector('.dg-skill-search');
+    }
+
+    /** Every button still showing under the current query. */
+    get matchingButtons() {
+      return this.categories.flatMap((category) =>
+        (category.buttons ?? []).filter((button) => !button.element.classList.contains('dg-filtered-out'))
+      );
+    }
+
+    async _renderInner() {
+      await super._renderInner();
+      this.element.appendChild(this.#buildSearch());
+    }
+
+    #buildSearch() {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.classList.add('dg-skill-search');
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = game.i18n.localize('DG_HUD.Skills.SearchPlaceholder');
+      input.setAttribute('aria-label', game.i18n.localize('DG_HUD.Skills.SearchLabel'));
+      input.addEventListener('input', () => this.filter(input.value));
+      input.addEventListener('keydown', (event) => this.#onKeyDown(event));
+
+      return input;
+    }
+
+    /**
+     * Narrow the list to what matches.
+     *
+     * A category holding a match is opened for as long as the query lasts — a
+     * match hidden inside a collapsed category is the same as no match at all —
+     * and the categories the player had open are put back when it is cleared.
+     * @param {string} query
+     */
+    filter(query) {
+      const active = Boolean(String(query ?? '').trim());
+      if (active && !this._expandedBeforeFilter) {
+        this._expandedBeforeFilter = this.categories.map((category) => category.visible);
+      }
+
+      for (const category of this.categories) {
+        let matches = 0;
+
+        for (const button of category.buttons ?? []) {
+          const hit = matchesSkill(query, button.searchText ?? button.label);
+          button.element.classList.toggle('dg-filtered-out', !hit);
+          if (hit) matches += 1;
+        }
+
+        // A category with nothing left in it is not rendered at all (UX-1).
+        category.element.classList.toggle('dg-filtered-out', active && matches === 0);
+
+        if (active && matches > 0) {
+          if (!category.visible) category.toggle(true);
+          // Argon pins a category to the width it was measured at and lays its
+          // buttons out on a fixed column count, both chosen for the full list.
+          // Left alone, one match sits in the footprint of forty.
+          category.element.style.width = 'auto';
+          this.#setColumns(category, matches);
+        }
+      }
+
+      if (!active && this._expandedBeforeFilter) {
+        this.categories.forEach((category, index) => {
+          // toggle() is where Argon applies the measured width, so this restores
+          // the layout as well as the state.
+          category.toggle(this._expandedBeforeFilter[index]);
+          this.#restoreColumns(category);
+        });
+        this._expandedBeforeFilter = null;
+      }
+    }
+
+    /** Lay a filtered category out on as many columns as it has matches. */
+    #setColumns(category, matches) {
+      const content = category.buttonContainer;
+      if (!content) return;
+
+      this._columns ??= new Map();
+      if (!this._columns.has(category)) this._columns.set(category, content.style.gridTemplateColumns);
+
+      const full = Number(/repeat\((\d+)/.exec(this._columns.get(category) ?? '')?.[1] ?? 3);
+      content.style.gridTemplateColumns = `repeat(${Math.min(matches, full)}, 1fr)`;
+    }
+
+    /** Hand the category back the column count Argon measured it with. */
+    #restoreColumns(category) {
+      const content = category.buttonContainer;
+      if (!content || !this._columns?.has(category)) return;
+
+      content.style.gridTemplateColumns = this._columns.get(category);
+      this._columns.delete(category);
+    }
+
+    /** Drop the query and show the whole list again. */
+    clear() {
+      const input = this.searchInput;
+      if (input) input.value = '';
+      this.filter('');
+    }
+
+    /** `preventScroll`: the panel is still mid-transition when this runs. */
+    focusSearch() {
+      this.searchInput?.focus({ preventScroll: true });
+      this.searchInput?.select();
+    }
+
+    #onKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.stopPropagation(); // Escape here means "drop the query", not "close Foundry's dialog"
+        this.clear();
+        this.searchInput?.blur();
+        return;
+      }
+
+      if (event.key !== 'Enter') return;
+
+      // Only when the query has narrowed the list to a single skill — otherwise
+      // Enter would pick one arbitrarily, which is a roll nobody asked for.
+      const matches = this.matchingButtons;
+      if (matches.length !== 1) return;
+
+      event.preventDefault();
+
+      // A KeyboardEvent carries `shiftKey`, so Shift+Enter reaches the system's
+      // roll exactly as Shift+click does — same dialog, same modifiers (PAR-1).
+      matches[0]._onLeftClick(event);
+    }
+  }
+
+  /**
    * Opens the full skill list. ButtonPanelButton takes no constructor arguments —
    * subclasses supply `label`, `icon` and the panel itself via `_getPanel()`.
    */
@@ -165,11 +386,23 @@ export function createSkillPanels(ARGON) {
       return ICONS.skills;
     }
 
+    /**
+     * Argon opens the panel; the filter box takes focus with it, so the list can
+     * be narrowed by typing without a second click. Closing drops the query, so
+     * the panel always opens on the whole list.
+     */
+    async _onClick(event) {
+      await super._onClick(event);
+
+      if (this.panel.visible) this.panel.focusSearch();
+      else this.panel.clear();
+    }
+
     async _getPanel() {
-      const { AccordionPanel, AccordionPanelCategory } = ARGON.MAIN.BUTTON_PANELS.ACCORDION;
+      const { AccordionPanelCategory } = ARGON.MAIN.BUTTON_PANELS.ACCORDION;
       const byLabel = (a, b) => a.label.localeCompare(b.label);
 
-      const skills = extractSkills(this.actor);
+      const skills = listedSkills(this.actor);
       const trained = skills.filter((skill) => skill.value > 0 && !skill.typed).sort(byLabel);
       const untrained = skills.filter((skill) => skill.value === 0 && !skill.typed).sort(byLabel);
       const typed = skills.filter((skill) => skill.typed).sort(byLabel);
@@ -184,10 +417,12 @@ export function createSkillPanels(ARGON) {
       addCategory('DG_HUD.Skills.Trained', trained.map((skill) => new DGSkillButton(skill)));
       addCategory('DG_HUD.Skills.Typed', typed.map((skill) => new DGSkillButton(skill)));
       addCategory('DG_HUD.Skills.SpecialTraining', training.map((entry) => new DGSpecialTrainingButton(entry)));
+
+      // Empty, and so skipped, when untrained skills are switched off.
       addCategory('DG_HUD.Skills.Untrained', untrained.map((skill) => new DGSkillButton(skill)));
 
       // The id lets Argon remember which categories the player left expanded.
-      return new AccordionPanel({ id: 'dg-skills', accordionPanelCategories: categories });
+      return new DGSkillAccordionPanel({ id: 'dg-skills', accordionPanelCategories: categories });
     }
   }
 
@@ -202,7 +437,12 @@ export function createSkillPanels(ARGON) {
     }
 
     async _getButtons() {
-      return extractSkills(this.actor).length ? [new DGSkillsButton()] : [];
+      // A button that opens an empty list is not rendered at all (UX-1) — which
+      // an Agent with nothing but untrained skills would otherwise get.
+      const hasSomethingToList =
+        listedSkills(this.actor).length > 0 || extractSpecialTraining(this.actor).length > 0;
+
+      return hasSomethingToList ? [new DGSkillsButton()] : [];
     }
   }
 

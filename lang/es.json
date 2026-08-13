@@ -22,6 +22,8 @@
   "DG_HUD.Skills.Typed": "Habilidades personalizadas",
   "DG_HUD.Skills.SpecialTraining": "Entrenamiento especial",
   "DG_HUD.Skills.FlaggedForImprovement": "Marcada para mejorar.",
+  "DG_HUD.Skills.SearchPlaceholder": "Filtrar habilidades…",
+  "DG_HUD.Skills.SearchLabel": "Filtrar habilidades",
 
   "DG_HUD.Actions.FightBack": "Contraatacar",
   "DG_HUD.Actions.RollSanity": "Cordura",
@@ -91,6 +93,9 @@
   "DG_HUD.Settings.DamageAutomationHint": "Qué ocurre tras una tirada de daño o letalidad contra un objetivo.",
   "DG_HUD.Settings.DamageAutomationPropose": "Proponer — ofrece el resultado; un clic lo aplica",
   "DG_HUD.Settings.DamageAutomationAuto": "Aplicar automáticamente — lo aplica de inmediato cuando hay permiso",
+  "DG_HUD.Settings.ShowUntrainedSkillsName": "Mostrar habilidades sin entrenar",
+  "DG_HUD.Settings.ShowUntrainedSkillsHint": "Incluye en la lista las habilidades en las que el Agente no tiene entrenamiento. Desactivado por defecto — se pueden tirar desde la hoja de personaje igualmente.",
+
   "DG_HUD.Settings.DebugModeName": "Registro de depuración",
   "DG_HUD.Settings.DebugModeHint": "Escribe la actividad detallada del HUD en la consola del navegador."
 }

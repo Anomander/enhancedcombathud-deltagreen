@@ -51,6 +51,104 @@
 }
 
 /*
+ * Argon sizes `.action-element` for the main action row — 175×200 with the
+ * title pinned to the bottom edge — because its own accordions only ever hold
+ * `.feature-element`s. At that size a skill tile overflows the accordion's
+ * `overflow: hidden` and takes its label out of view with it, which is why the
+ * skill list rendered as blank slabs. Size them for the list they are in.
+ *
+ * The `.extended-combat-hud` prefix is not decoration: it takes the specificity
+ * past Argon's own three-class selectors, which module load order would
+ * otherwise decide.
+ */
+.extended-combat-hud .action-hud .features-container .action-element {
+  min-width: 116px;
+  min-height: 84px;
+  width: 116px;
+  height: 84px;
+  padding: 0.35rem 0.35rem 1.9rem;
+}
+
+.extended-combat-hud .action-hud .features-container .action-element-title {
+  height: 1.9rem;
+  padding: 0 0.25rem;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: none;
+}
+
+/*
+ * The monogram. A skill has no art, so the tile carries its own initials —
+ * quiet enough to read the label over, distinct enough to aim at.
+ */
+.dg-skill-monogram {
+  position: absolute;
+  inset: 0 0 1.9rem;
+  display: grid;
+  place-items: center;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Flagged for improvement: a corner mark, so the monogram stays legible. */
+.dg-skill-button.dg-skill-flagged::after {
+  content: '';
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--dg-hud-warning, #c8a02e);
+}
+
+/*
+ * The filter box, above the skill list. Reading forty skills takes longer than
+ * typing three letters, so the panel opens with this focused.
+ *
+ * Positioned against the panel rather than placed in its flow: Argon lays the
+ * categories out with `wrap-reverse`, and a flex child would land inside that.
+ * The 53px inset clears the gutter the vertical category titles occupy.
+ */
+.dg-skill-search {
+  position: absolute;
+  left: 53px;
+  bottom: calc(100% + 0.4rem);
+  width: 14rem;
+  padding: 0.25em 0.5em;
+  pointer-events: all;
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--ech-mainAction-base-color, #b4d2dc);
+  background: var(--ech-mainAction-base-background, #414b55e6);
+  border: 1px solid var(--ech-mainAction-base-border, #757f89);
+  border-radius: 0;
+}
+
+.dg-skill-search::placeholder {
+  color: inherit;
+  opacity: 0.55;
+}
+
+.dg-skill-search:focus {
+  outline: none;
+  border-color: var(--dg-hud-warning, #c8a02e);
+}
+
+/* Filtered out, not merely dimmed: a tile that is not a match is not a target. */
+.extended-combat-hud .action-hud .features-container .action-element.dg-filtered-out,
+.extended-combat-hud .action-hud .features-accordion.dg-filtered-out {
+  display: none;
+}
+
+/*
  * An armed Willpower Boost. The Willpower is not spent until the next roll
  * actually happens, so this state is cancellable — it needs to read as "waiting"
  * rather than as "done".

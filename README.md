@@ -61,6 +61,7 @@ rather than a Sanity score.
 | Enable Willpower Boost | Off | House rule: spend WP for a bonus on the next roll. Nothing is spent until you roll. |
 | Willpower Boost cost | 1 | WP spent per boost. |
 | Willpower Boost bonus | 20 | Percentile bonus granted. |
+| Show untrained skills | Off | Lists skills the Agent has no training in. Per player; they stay rollable from the character sheet either way. |
 | Debug logging | Off | Detailed HUD activity in the browser console. |
 
 HUD position, theme, size and the toggle keybinding are all configured in **Argon Core's**
