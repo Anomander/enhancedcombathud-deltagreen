@@ -109,8 +109,8 @@ enforceable in the UI and not just in the code.
 
 ### 2.5 Progressive disclosure
 Three things belong in the fight: the weapon, the vitals, the roll you are about to make.
-Everything else — the full skill list, Bonds, Motivations, statistics — is one layer deep and
-stays there. Real estate on screen during combat is the scarcest resource the product has.
+Everything else — the full skill list, the statistics, Bonds, Motivations — is one layer deep
+and stays there. Real estate on screen during combat is the scarcest resource the product has.
 
 ### 2.6 Speak Delta Green
 Agent, Handler, Bond, Breaking Point, Willpower, Lethality, Unnatural. Never bonus action,

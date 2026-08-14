@@ -50,10 +50,19 @@ export function makeSkills(skillSet = 'human', proficiencies = {}) {
  * Build a weapon item.
  * @param {object} [overrides] - Any `system` field from the weapon schema.
  */
-export function makeWeapon({ id = 'weapon-1', name = 'M4 Carbine', img = 'icons/weapons/rifle.webp', ...system } = {}) {
+export function makeWeapon({
+  id = 'weapon-1',
+  name = 'M4 Carbine',
+  img = 'icons/weapons/rifle.webp',
+  // Every embedded document Foundry hands a module carries one; weapon sets are
+  // stored as uuids, so a fixture without it cannot exercise them.
+  uuid = `Actor.actor-agent.Item.${id}`,
+  ...system
+} = {}) {
   return {
     id,
     _id: id,
+    uuid,
     name,
     img,
     type: 'weapon',

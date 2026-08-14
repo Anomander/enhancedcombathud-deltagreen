@@ -2,6 +2,7 @@
   "DG_HUD.Panels.Attacks": "Ataques",
   "DG_HUD.Panels.Reactions": "Reacciones",
   "DG_HUD.Panels.Skills": "Habilidades",
+  "DG_HUD.Panels.Statistics": "Atributos",
   "DG_HUD.Panels.Sanity": "Cordura",
 
   "DG_HUD.Vitals.HP": "PV",
@@ -27,8 +28,9 @@
 
   "DG_HUD.Actions.FightBack": "Contraatacar",
   "DG_HUD.Actions.RollSanity": "Cordura",
-  "DG_HUD.Actions.WillpowerBoost": "Impulso {cost} PVo (+{percent}%)",
-  "DG_HUD.Actions.WillpowerBoostArmed": "Impulso preparado (+{percent}%)",
+  "DG_HUD.Actions.WillpowerBoostTag": "PVo",
+  "DG_HUD.Actions.WillpowerBoostArmedTag": "Listo",
+  "DG_HUD.Actions.WillpowerBoostBonus": "+{percent}%",
   "DG_HUD.Actions.WillpowerBoostTitle": "Impulso de Voluntad",
   "DG_HUD.Actions.WillpowerBoostHint": "Gasta {cost} PVo para +{percent}% en tu próxima tirada. No se gasta nada hasta que tires.",
   "DG_HUD.Actions.WillpowerBoostArmedHint": "+{percent}% se aplica a tu próxima tirada, con un coste de {cost} PVo. Pulsa de nuevo para cancelar.",
@@ -58,7 +60,6 @@
   "DG_HUD.Apply.Button": "Aplicar {applied} de daño",
 
   "DG_HUD.Drawer.Title": "Ficha del Agente",
-  "DG_HUD.Drawer.Statistics": "Atributos",
   "DG_HUD.Drawer.Bonds": "Vínculos",
   "DG_HUD.Drawer.Motivations": "Motivaciones",
   "DG_HUD.Drawer.AcuteEpisode": "Episodio agudo",
@@ -76,6 +77,7 @@
   "DG_HUD.Notifications.WpBoostDisabled": "El Impulso de Voluntad está desactivado en esta partida.",
   "DG_HUD.Notifications.WpInsufficient": "Puntos de Voluntad insuficientes.",
   "DG_HUD.Notifications.WpUnavailable": "Este actor no tiene Voluntad.",
+  "DG_HUD.Notifications.WeaponSetsPruned": "Se eliminaron {count} arma(s) de los conjuntos de armas de este Agente: ya no las lleva.",
   "DG_HUD.Notifications.NoPermissionToApply": "No puedes modificar ese objetivo — pide a tu Director que lo aplique.",
   "DG_HUD.Notifications.NothingToRoll": "Esta arma no tiene ni fórmula de daño ni valor de Letalidad: no hay nada que tirar.",
   "DG_HUD.Notifications.SeveralTargets": "Hay varios objetivos marcados: no se aplicó nada. Marca uno solo para resolver el daño contra él.",

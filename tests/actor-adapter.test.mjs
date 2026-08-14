@@ -14,7 +14,9 @@ import {
   extractSkills,
   extractWeapons,
   getActorItems,
-  weaponDamageOptions
+  weaponDamageOptions,
+  canRollSanity,
+  extractStatistics
 } from '../scripts/actor-adapter.mjs';
 import { makeAgent, makeNpc, makeUnnatural, makeVehicle, makeWeapon, makeArmor, makeGear, SCHEMA } from './fixtures/dg-actors.mjs';
 
@@ -67,6 +69,89 @@ describe('Vitals — Agent', () => {
       expect(vitals[stat]).toMatchObject({ value: null, available: false });
     }
     expect(vitals.breakingPoint).toBeNull();
+  });
+});
+
+describe('Statistics', () => {
+  it('reads the six statistics in the order character sheets print them', () => {
+    const stats = extractStatistics(makeAgent());
+    expect(stats.map((stat) => stat.key)).toEqual(['str', 'con', 'dex', 'int', 'pow', 'cha']);
+  });
+
+  it('reads the roll target from the system-derived x5', () => {
+    // actor-derived.js prepareStatisticsX5 — x5 = effectiveValue * 5.
+    const dex = extractStatistics(makeAgent()).find((stat) => stat.key === 'dex');
+    expect(dex).toMatchObject({ value: 13, x5: 65 });
+  });
+
+  it('prefers effectiveValue, which folds in the modifier and Active Effects', () => {
+    const actor = makeAgent();
+    actor.system.statistics.str = { value: 12, modifier: 2, effectiveValue: 14, x5: 70 };
+
+    const str = extractStatistics(actor).find((stat) => stat.key === 'str');
+    expect(str).toMatchObject({ value: 14, x5: 70 });
+  });
+
+  it('labels each statistic by key, never by a hardcoded name', () => {
+    expect(extractStatistics(makeAgent()).map((stat) => stat.labelKey)).toEqual([
+      'DG_HUD.Stats.str',
+      'DG_HUD.Stats.con',
+      'DG_HUD.Stats.dex',
+      'DG_HUD.Stats.int',
+      'DG_HUD.Stats.pow',
+      'DG_HUD.Stats.cha'
+    ]);
+  });
+
+  it('reads statistics for an Unnatural, which carries them too', () => {
+    expect(extractStatistics(makeUnnatural()).length).toBeGreaterThan(0);
+  });
+
+  it('returns nothing for an actor with no statistics block', () => {
+    expect(extractStatistics(makeVehicle())).toEqual([]);
+    expect(extractStatistics(null)).toEqual([]);
+  });
+
+  it('leaves out a statistic it cannot read, rather than defaulting it', () => {
+    const actor = makeAgent();
+    actor.system.statistics.cha = { value: null };
+
+    expect(extractStatistics(actor).map((stat) => stat.key)).not.toContain('cha');
+  });
+});
+
+describe('canRollSanity', () => {
+  it('is true for an Agent with Sanity left', () => {
+    expect(canRollSanity(extractVitals(makeAgent({ sanity: 44 })))).toBe(true);
+  });
+
+  it('is false at zero Sanity — there is nothing left to test', () => {
+    expect(canRollSanity(extractVitals(makeAgent({ sanity: 0 })))).toBe(false);
+  });
+
+  it('is true at one Sanity, which is still a roll', () => {
+    expect(canRollSanity(extractVitals(makeAgent({ sanity: 1 })))).toBe(true);
+  });
+
+  it('is false where the actor has no Sanity score at all', () => {
+    expect(canRollSanity(extractVitals(makeUnnatural()))).toBe(false);
+    expect(canRollSanity(extractVitals(makeVehicle()))).toBe(false);
+  });
+
+  it('is false for an NPC at zero, as for an Agent', () => {
+    expect(canRollSanity(extractVitals(makeNpc({ sanity: 0 })))).toBe(false);
+  });
+
+  it('stays true when the score is withheld, rather than guessing it is zero', () => {
+    // keepSanityPrivate blanks the value (UX-5). A hidden score is unknown, not
+    // zero, and SYS-5 forbids reading absent data as a default.
+    const withheld = { san: { value: null, max: null, percentage: 0, available: true, private: true } };
+    expect(canRollSanity(withheld)).toBe(true);
+  });
+
+  it('answers false rather than throwing when handed nothing', () => {
+    expect(canRollSanity(null)).toBe(false);
+    expect(canRollSanity({})).toBe(false);
   });
 });
 

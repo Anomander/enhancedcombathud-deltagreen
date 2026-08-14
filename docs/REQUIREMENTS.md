@@ -35,7 +35,8 @@ Hard constraints. Violating any of these means the module does not run.
 | **FR-3** | Present every skill the actor has — including typed skills and Special Training — grouped by trained/untrained, one layer deep. Keys and labels come from the actor, never a hardcoded list. | shipped | SYS-2, §2.5 |
 | **FR-4** | Offer Dodge and Fight Back as reactions, each shown only if the actor has the skill. | shipped | UX-1 |
 | **FR-5** | Offer a Sanity test. | shipped | |
-| **FR-6** | Carry reference material a player *reads* rather than clicks — statistics, Bonds, Motivations — in the drawer, not the action bar. | shipped | §2.5 |
+| **FR-6** | Carry reference material a player *reads* rather than clicks — Bonds, Motivations — in the drawer, not the action bar. Statistics left the drawer when they became rollable: a control belongs where it can be clicked. | shipped | §2.5, UX-1 |
+| **FR-6a** | Offer each of the six statistics as an x5 test, one layer deep behind its own button. | shipped | §2.5 |
 | **FR-7** | Seed weapon sets from the actor's equipped weapons, so the HUD is useful before anyone configures it; switching a set equips that set and unequips the rest. | shipped | UX-1 |
 | **FR-8** | Support `agent`, `npc` and `unnatural` actors. `vehicle` is excluded — it has no Willpower, Sanity or skills. | shipped | SYS-5 |
 

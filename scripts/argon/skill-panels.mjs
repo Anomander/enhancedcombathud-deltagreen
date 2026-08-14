@@ -6,10 +6,11 @@
  * skill set the system defines, including the unnatural one (SYS-2).
  */
 
-import { extractSkills, extractSpecialTraining, extractVitals } from '../actor-adapter.mjs';
+import { canRollSanity, extractSkills, extractSpecialTraining, extractVitals } from '../actor-adapter.mjs';
 import { rollService } from '../roll-service.mjs';
-import { getShowUntrainedSkills, getWpBoostSettings } from '../settings.mjs';
-import { matchesSkill, monogram } from '../skill-display.mjs';
+import { getShowUntrainedSkills } from '../settings.mjs';
+import { matchesSkill } from '../skill-display.mjs';
+import { addMonogram } from './tile-monogram.mjs';
 
 /**
  * Argon renders a button's `icon` as a CSS background-image, so these are image
@@ -19,28 +20,8 @@ const ICONS = {
   dodge: 'icons/svg/wingfoot.svg',
   fightBack: 'icons/svg/combat.svg',
   skills: 'icons/svg/book.svg',
-  sanity: 'icons/svg/terror.svg',
-  willpower: 'icons/svg/lightning.svg'
+  sanity: 'icons/svg/terror.svg'
 };
-
-/**
- * A skill has no art, so its tile carries its own initials instead — a
- * silhouette to aim at rather than one more identical slab. Built as an
- * element, never as markup (ARCH-3).
- * @param {HTMLElement} element The button's root.
- * @param {string} label The skill's own name.
- */
-function addMonogram(element, label) {
-  // Argon paints `icon` unconditionally, so an empty one leaves `url("")` behind
-  // — a request for the page itself. A tile with no art asks for nothing.
-  element.style.backgroundImage = 'none';
-
-  const mark = document.createElement('span');
-  mark.classList.add('dg-skill-monogram');
-  mark.setAttribute('aria-hidden', 'true'); // the label beneath it already says this
-  mark.textContent = monogram(label);
-  element.prepend(mark);
-}
 
 /** Delta Green names two reactions; each is only offered if the actor has the skill. */
 const REACTIONS = [
@@ -446,7 +427,7 @@ export function createSkillPanels(ARGON) {
     }
   }
 
-  /** Sanity test, and the optional Willpower Boost house rule. */
+  /** The Sanity test. Willpower Boost lives on the portrait, beside the WP it spends. */
   class DGSanityPanel extends ARGON.MAIN.ActionPanel {
     get classes() {
       return [...super.classes, 'dg-sanity-panel'];
@@ -460,17 +441,13 @@ export function createSkillPanels(ARGON) {
       return 2; // free action
     }
 
+    /** An Agent at zero Sanity has nothing left to test (UX-1). */
     get visible() {
-      return extractVitals(this.actor).san.available;
+      return canRollSanity(extractVitals(this.actor));
     }
 
     async _getButtons() {
-      const buttons = [new DGSanityButton()];
-
-      // Only rendered when the house rule is switched on (UX-2).
-      if (getWpBoostSettings().enabled) buttons.push(new DGWillpowerBoostButton());
-
-      return buttons;
+      return [new DGSanityButton()];
     }
   }
 
@@ -492,68 +469,6 @@ export function createSkillPanels(ARGON) {
 
     async _onLeftClick(event) {
       await rollService.rollSanity({ actor: this.actor, token: this.token, event });
-    }
-  }
-
-  /**
-   * Arms a Willpower Boost for the next roll. A toggle, not a purchase — the
-   * Willpower is not taken until a roll actually happens, so clicking again
-   * disarms at no cost (UX-1: an armed state the player cannot cancel is a
-   * control that only half works).
-   */
-  class DGWillpowerBoostButton extends ARGON.MAIN.BUTTONS.ActionButton {
-    get icon() {
-      return ICONS.willpower;
-    }
-
-    get colorScheme() {
-      return 2;
-    }
-
-    get armed() {
-      return rollService.isBoostArmed(this.actor);
-    }
-
-    get label() {
-      const { cost, percent } = getWpBoostSettings();
-      return this.armed
-        ? game.i18n.format('DG_HUD.Actions.WillpowerBoostArmed', { percent })
-        : game.i18n.format('DG_HUD.Actions.WillpowerBoost', { cost, percent });
-    }
-
-    async getTooltipData() {
-      const { cost, percent } = getWpBoostSettings();
-      return {
-        title: game.i18n.localize('DG_HUD.Actions.WillpowerBoostTitle'),
-        description: game.i18n.format(
-          this.armed ? 'DG_HUD.Actions.WillpowerBoostArmedHint' : 'DG_HUD.Actions.WillpowerBoostHint',
-          { cost, percent }
-        )
-      };
-    }
-
-    /** Argon applies `icon` as a background image; the armed state is a class. */
-    async _renderInner() {
-      await super._renderInner();
-      this.element.classList.toggle('dg-boost-armed', this.armed);
-    }
-
-    async _onLeftClick() {
-      const result = rollService.toggleWillpowerBoost(this.actor);
-
-      if (result.reason) {
-        // Refusals explain themselves rather than failing silently (UX-6).
-        ui.notifications.warn(game.i18n.localize(result.reason));
-        return;
-      }
-
-      if (result.armed) {
-        ui.notifications.info(
-          game.i18n.format('DG_HUD.Notifications.WpBoostArmed', { bonus: result.bonus })
-        );
-      }
-
-      await this.render();
     }
   }
 

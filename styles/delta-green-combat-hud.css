@@ -149,14 +149,60 @@
 }
 
 /*
- * An armed Willpower Boost. The Willpower is not spent until the next roll
- * actually happens, so this state is cancellable — it needs to read as "waiting"
- * rather than as "done".
+ * The Willpower Boost control, sharing the weapon-sets line.
+ *
+ * Matched to the height and weight of a weapon set so it reads at a glance, and
+ * kept off the action bar because it rolls nothing — it arms a modifier for the
+ * next roll. Argon's HUD is pointer-events:none, so it must opt back in.
  */
-.dg-sanity-panel .action-element.dg-boost-armed,
-.dg-sanity-panel .feature-element.dg-boost-armed {
+.dg-wp-boost {
+  /* A `.weapon-set` is 50px plus its border; matching it keeps the line even. */
+  height: 52px;
+  padding: 0 0.7em;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15em;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ech-mainAction-base-color, #b4d2dc);
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--ech-mainAction-base-border, #757f89);
+  border-radius: 0;
+  backdrop-filter: var(--ech-blur-amount);
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.dg-wp-boost:hover {
+  filter: brightness(1.3);
+}
+
+.dg-wp-boost-tag {
+  font-size: 0.8rem;
+}
+
+/* The bonus is the detail; the state is the headline. */
+.dg-wp-boost-bonus {
+  font-size: 0.7rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/*
+ * Armed. The Willpower is not spent until the next roll actually happens, so
+ * this state is cancellable — it reads as "waiting", not as "done".
+ */
+.dg-wp-boost.dg-boost-armed {
+  color: var(--dg-hud-warning, #c8a02e);
+  border-color: var(--dg-hud-warning, #c8a02e);
   box-shadow: inset 0 0 0 1px var(--dg-hud-warning, #c8a02e);
-  filter: brightness(1.15);
 }
 
 /*

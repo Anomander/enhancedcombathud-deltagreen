@@ -2,6 +2,7 @@
   "DG_HUD.Panels.Attacks": "Attacks",
   "DG_HUD.Panels.Reactions": "Reactions",
   "DG_HUD.Panels.Skills": "Skills",
+  "DG_HUD.Panels.Statistics": "Statistics",
   "DG_HUD.Panels.Sanity": "Sanity",
 
   "DG_HUD.Vitals.HP": "HP",
@@ -27,8 +28,9 @@
 
   "DG_HUD.Actions.FightBack": "Fight Back",
   "DG_HUD.Actions.RollSanity": "Sanity",
-  "DG_HUD.Actions.WillpowerBoost": "Boost {cost} WP (+{percent}%)",
-  "DG_HUD.Actions.WillpowerBoostArmed": "Boost armed (+{percent}%)",
+  "DG_HUD.Actions.WillpowerBoostTag": "WP",
+  "DG_HUD.Actions.WillpowerBoostArmedTag": "Armed",
+  "DG_HUD.Actions.WillpowerBoostBonus": "+{percent}%",
   "DG_HUD.Actions.WillpowerBoostTitle": "Willpower Boost",
   "DG_HUD.Actions.WillpowerBoostHint": "Spend {cost} WP for +{percent}% on your next roll. Nothing is spent until you roll.",
   "DG_HUD.Actions.WillpowerBoostArmedHint": "+{percent}% applies to your next roll, costing {cost} WP. Click again to cancel.",
@@ -58,7 +60,6 @@
   "DG_HUD.Apply.Button": "Apply {applied} damage",
 
   "DG_HUD.Drawer.Title": "Agent Record",
-  "DG_HUD.Drawer.Statistics": "Statistics",
   "DG_HUD.Drawer.Bonds": "Bonds",
   "DG_HUD.Drawer.Motivations": "Motivations",
   "DG_HUD.Drawer.AcuteEpisode": "Acute episode",
@@ -76,6 +77,7 @@
   "DG_HUD.Notifications.WpBoostDisabled": "Willpower Boost is switched off for this game.",
   "DG_HUD.Notifications.WpInsufficient": "Not enough Willpower.",
   "DG_HUD.Notifications.WpUnavailable": "This actor has no Willpower.",
+  "DG_HUD.Notifications.WeaponSetsPruned": "Removed {count} weapon(s) from this Agent's weapon sets — they are no longer carried.",
   "DG_HUD.Notifications.NoPermissionToApply": "You cannot change that target — ask your Handler to apply it.",
   "DG_HUD.Notifications.NothingToRoll": "This weapon has neither a damage formula nor a Lethality rating — there is nothing to roll.",
   "DG_HUD.Notifications.SeveralTargets": "Several targets held — nothing was applied. Target one to resolve damage against it.",

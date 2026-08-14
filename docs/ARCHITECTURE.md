@@ -47,6 +47,7 @@ go* table are in [DESIGN.md §1](DESIGN.md). In short:
 | `attack-targets.mjs` | core | Records who an attack was aimed at; names them per viewer. | root |
 | `events.mjs` | core | In-module event bus for roll outcomes. | anything |
 | `targeting.mjs` | core | What may be said about the current target. Pure. | anything |
+| `weapon-sets.mjs` | core | What a weapon set names, and what switching to it equips. Pure. | anything |
 | `roll-handler.mjs` | core | Pure math for the Willpower Boost house rule. No I/O. | anything |
 | `settings.mjs` | core | Setting registration and typed readers. | anything |
 | `logger.mjs` | core | Levelled logging, gated on the `debugMode` setting. | anything |
@@ -54,9 +55,11 @@ go* table are in [DESIGN.md §1](DESIGN.md). In short:
 | `argon/register.mjs` | presentation | Builds and registers every component on `argonInit`. | root only |
 | `argon/portrait-panel.mjs` | presentation | Portrait, vitals, dying/dead state. | register |
 | `argon/weapon-panel.mjs` | presentation | Attacks panel and weapon buttons. | register |
-| `argon/skill-panels.mjs` | presentation | Skills, Reactions, Sanity panels and their buttons. | register |
-| `argon/drawer-panel.mjs` | presentation | Reference drawer: statistics, Bonds, Motivations. | register |
-| `argon/weapon-sets.mjs` | presentation | Default weapon-set layout and set-change equipping. | register |
+| `argon/skill-panels.mjs` | presentation | Skills, Reactions and Sanity panels and their buttons. | register |
+| `argon/stat-panel.mjs` | presentation | Statistics panel and its roll buttons. | register |
+| `argon/tile-monogram.mjs` | presentation | The glyph a skill or statistic tile carries in place of art. | skill-panels, stat-panel |
+| `argon/drawer-panel.mjs` | presentation | Reference drawer: Bonds, Motivations. | register |
+| `argon/weapon-sets.mjs` | presentation | Seeds and prunes the sets in Argon's flag, applies a set change, Willpower Boost control. | register |
 | `argon/target-hud.mjs` | presentation | Target readout, in Argon's `ButtonHud` slot. | register |
 | `argon/movement-hud.mjs` | presentation | Suppressed. Exists only to opt out of Argon's movement tracker. | register |
 

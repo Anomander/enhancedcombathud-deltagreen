@@ -41,8 +41,13 @@ and Motivations, all rolled through the Delta Green system's own dice pipeline.
 - **Reactions** — Dodge and Fight Back, shown only when the actor has the skill.
 - **Skills** — every skill the system defines, grouped into trained and untrained, including
   typed skills and Special Training.
-- **Sanity** — a Sanity test button, plus an optional Willpower Boost house rule.
-- **Agent Record drawer** — statistics, Bonds and Motivations at a glance.
+- **Statistics** — STR, CON, DEX, INT, POW and CHA behind one button, each rolling its own
+  x5 test.
+- **Sanity** — a Sanity test button.
+- **Willpower Boost** (optional house rule) — a control on the weapon-sets line, not an action
+  button: it arms a bonus for your next roll rather than rolling anything. Click again to
+  cancel; nothing is spent until you actually roll.
+- **Agent Record drawer** — Bonds and Motivations at a glance.
 
 Rolls go through the Delta Green system unchanged, so modifier dialogs (shift-click), chat
 cards and Dice So Nice all behave exactly as they do on the character sheet.

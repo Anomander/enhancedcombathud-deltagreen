@@ -131,6 +131,71 @@ export function extractVitals(actor) {
 }
 
 /**
+ * The statistics every actor type carries, in the order character sheets print
+ * them. Not an invented category table — base-actor.js declares exactly these
+ * six under `system.statistics`, and no more.
+ */
+const STATISTIC_KEYS = ['str', 'con', 'dex', 'int', 'pow', 'cha'];
+
+/**
+ * Extract the actor's statistics.
+ *
+ * `value` is the system's `effectiveValue` where it has one — that is the
+ * statistic after its modifier and any Active Effect, and what the sheet shows.
+ * `x5` is the roll target the system derives from it, read rather than
+ * recomputed (SYS-4). See module/data/derived/actor-derived.js
+ * prepareStatisticsX5 and module/data/actor/base/general.js statisticsField.
+ *
+ * A statistic with no readable value is left out rather than defaulted (SYS-5).
+ *
+ * @param {object|null} actor
+ * @returns {Array<{key: string, labelKey: string, value: number, x5: number}>}
+ */
+export function extractStatistics(actor) {
+  const statistics = actor?.system?.statistics;
+  if (!statistics) return [];
+
+  return STATISTIC_KEYS.flatMap((key) => {
+    const statistic = statistics[key];
+    if (!statistic) return [];
+
+    // Number(null) is 0, so an unreadable statistic has to be rejected before
+    // the cast rather than after it — 0 is a legitimate score.
+    const raw = statistic.effectiveValue ?? statistic.value;
+    if (raw === null || raw === undefined || raw === '') return [];
+
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return [];
+
+    const x5 = Number(statistic.x5 ?? value * 5);
+
+    return [{ key, labelKey: `DG_HUD.Stats.${key}`, value, x5 }];
+  });
+}
+
+/**
+ * Is a Sanity test worth offering?
+ *
+ * False where the actor has no Sanity score — an Unnatural or a Vehicle — and
+ * false at zero, where the Agent is permanently insane and the roll has nothing
+ * left to test.
+ *
+ * A withheld score counts as rollable: `keepSanityPrivate` blanks the value
+ * (UX-5), and an unreadable score is unknown, not zero (SYS-5). The system's own
+ * roll remains reachable from the sheet in every case — this decides what the
+ * HUD offers, never what may be rolled (PAR-4).
+ *
+ * @param {{san?: {value: number|null, available: boolean}}|null} vitals From extractVitals.
+ * @returns {boolean}
+ */
+export function canRollSanity(vitals) {
+  const san = vitals?.san;
+  if (!san?.available) return false;
+
+  return san.value !== 0;
+}
+
+/**
  * Extract the actor's skills.
  *
  * Keys, labels and values all come from `actor.system.skills`, so the module

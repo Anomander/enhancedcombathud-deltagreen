@@ -99,6 +99,8 @@ Four layers; dependencies point down only. Full diagram in
 - `scripts/damage-prompt.mjs` — Offers the damage roll the moment an attack lands.
 - `scripts/events.mjs` — In-module bus publishing roll outcomes.
 - `scripts/targeting.mjs` — What may be said about the current target. Pure.
+- `scripts/weapon-sets.mjs` — What a weapon set names, what switching to it equips,
+  and which of its entries no longer name a weapon the Agent carries. Pure.
 - `scripts/skill-display.mjs` — Text a skill tile is built from: its monogram, and
   the match test behind the skill filter. Pure.
 - `scripts/roll-handler.mjs` — Pure math for the Willpower Boost house rule only.

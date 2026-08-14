@@ -10,6 +10,7 @@ import { registerHost } from '../host.mjs';
 import { createPortraitPanel } from './portrait-panel.mjs';
 import { createWeaponPanel } from './weapon-panel.mjs';
 import { createSkillPanels } from './skill-panels.mjs';
+import { createStatPanel } from './stat-panel.mjs';
 import { createDrawerPanel } from './drawer-panel.mjs';
 import { createWeaponSets } from './weapon-sets.mjs';
 import { createMovementHud } from './movement-hud.mjs';
@@ -45,6 +46,7 @@ export function registerArgonComponents(CoreHUD) {
 
   const { DGWeaponPanel } = createWeaponPanel(ARGON);
   const { DGSkillPanel, DGReactionPanel, DGSanityPanel } = createSkillPanels(ARGON);
+  const { DGStatPanel } = createStatPanel(ARGON);
 
   CoreHUD.definePortraitPanel(createPortraitPanel(ARGON));
   CoreHUD.defineDrawerPanel(createDrawerPanel(ARGON));
@@ -54,6 +56,7 @@ export function registerArgonComponents(CoreHUD) {
     DGWeaponPanel,
     DGReactionPanel,
     DGSkillPanel,
+    DGStatPanel,
     DGSanityPanel,
     ARGON.PREFAB.PassTurnPanel
   ]);
